@@ -1,4 +1,7 @@
+import * as Sentry from "@sentry/bun";
 import { SlackApp } from "slack-edge";
+import setup from "./features";
+import { db } from "./libs/db";
 import { version, name } from "../package.json";
 const environment = process.env.NODE_ENV;
 const commit = (() => {
@@ -12,15 +15,13 @@ const commit = (() => {
   }
 })();
 
-import * as Sentry from "@sentry/bun";
-import setup from "./features";
-
 // Check required environment variables
 const requiredVars = [
   "SLACK_BOT_TOKEN",
   "SLACK_SIGNING_SECRET",
   "SLACK_CHANNEL",
   "SENTRY_DSN",
+  "DATABASE_URL",
 ] as const;
 const missingVars = requiredVars.filter((varName) => !process.env[varName]);
 
@@ -80,4 +81,4 @@ console.log(
   } milliseconds on version: ${version}@${commit}!\n\n----------------------------------\n`,
 );
 
-export { slackApp, slackClient, version, name, environment };
+export { slackApp, slackClient, version, name, environment, db };

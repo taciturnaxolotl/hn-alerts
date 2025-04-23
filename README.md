@@ -23,6 +23,12 @@ you will also need to launch an ngrok tunnel and update your dev slack manifest 
 bun ngrok
 ```
 
+also if you haven't worked with your postgres table yet then push the schema with
+
+```bash
+bun db:push
+```
+
 you also need to create a `.env` file with the following keys
 
 ```bash
@@ -31,6 +37,7 @@ SLACK_SIGNING_SECRET="xxxxx"
 SLACK_CHANNEL="C08KX2YNN87"
 NODE_ENV="dev"
 SENTRY_DSN="https://xxxxxx@xxxxxx.ingest.us.sentry.io/xxxx"
+DATABASE_URL="postgres://user:password@host:5432/table_name"
 ```
 
 ## 📜 License
