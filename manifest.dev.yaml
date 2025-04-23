@@ -1,0 +1,27 @@
+display_information:
+  name: HN Alerts
+  description: "You will never miss an alert :kitty-gun:"
+  background_color: "#FF6600"
+features:
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: false
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: hn alerts
+    always_online: false
+  slash_commands:
+    - command: /hn-alerts-link
+      url: https://casual-renewing-reptile.ngrok-free.app/slack
+      description: Link your HN account to Slack
+      should_escape: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - reactions:write
+      - commands
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

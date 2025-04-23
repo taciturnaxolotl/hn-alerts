@@ -1,43 +1,50 @@
-<h1 align="center">
-    <img src="https://raw.githubusercontent.com/taciturnaxolotl/carriage/master/.github/images/carriage.webp" width="200" alt="Logo"/><br/>
-    <img src="https://raw.githubusercontent.com/taciturnaxolotl/carriage/master/.github/images/transparent.png" height="45" width="0px"/>
-    <span>Carriage</span>
-    <img src="https://raw.githubusercontent.com/taciturnaxolotl/carriage/master/.github/images/transparent.png" height="30" width="0px"/>
-</h1>
+# Hacker News Alerts
 
-<p align="center">
-    <i>A train carriage can be anything you want it to be and is a container for storing things so that seems like an appropriate name</i>
-</p>
+<img src="https://cachet.dunkirk.sh/emojis/ycombinator/r" height="175" align="right" alt="ycombinator logo">
 
-<p align="center">
-	<img src="https://raw.githubusercontent.com/taciturnaxolotl/carriage/master/.github/images/line-break-thin.svg" />
-</p>
+> ### More deets coming soon 👀
+>
+> A slack bot that tracks whether you made it to the front page of hn; made with 💖 @ [Hack Club](https://github.com/hackclub)
+>
+> ⚠️ **Highly opinionated slack bot warning** - Project rapidly iterating
 
-## What's this?
+# 🚧 Dev
 
-This is my personal template repo! It serves as the reference for my `README.md` formating style and ~~hopefully soon my license scheme~~.
+You can launch the bot locally with bun
 
-## Why that License?
+```bash
+bun install
+bun dev
+```
 
-Well I like using the AGPL 3.0 license because it's a strong copyleft license that ensures that any changes made to the code are shared back with the community. However there is often alot of confusion about how the license works. Here are 3 brief cases showing how the AGPL 3.0 license works:
+you will also need to launch an ngrok tunnel and update your dev slack manifest to point to the ngrok tunnel
 
-1. You download the binary from the releases or use a hosted version.
-    - You haven't done anything to the code so you are entirely in the clear!
-2. You see a problem with the code so you fork it and use it privately
-    - You are still in the clear! The AGPL 3.0 license only requires you to share the code if you distribute it.
-3. You find an improvement, implement it, and distribute it privately in your company or for some family and friends
-    - You are still in the clear! The AGPL 3.0 license only requires you to share the code if you distribute it to the public.
+```bash
+bun ngrok
+```
 
-Basically if you distribute the code publicaly you have to share the code, but if you don't distribute the code publicaly or don't modify it then you don't have to share the code.
+you also need to create a `.env` file with the following keys
+
+```bash
+SLACK_BOT_TOKEN="xoxb-xxxxx-xxxxx-xxxxx-xxxxx"
+SLACK_SIGNING_SECRET="xxxxx"
+SLACK_CHANNEL="C08KX2YNN87"
+NODE_ENV="dev"
+SENTRY_DSN="https://xxxxxx@xxxxxx.ingest.us.sentry.io/xxxx"
+```
+
+## 📜 License
+
+The code is licensed under `AGPL 3.0`! That means AGPL 3.0 requires publishing source code changes when the software is used over a network, guaranteeing that users can access the code. All artwork and images are copyright reserved but may be used with proper attribution to the authors.
 
 <p align="center">
 	<img src="https://raw.githubusercontent.com/taciturnaxolotl/carriage/master/.github/images/line-break.svg" />
 </p>
 
 <p align="center">
-	<i><code>&copy 2024-present <a href="https://github.com/taciturnaxolotl">Kieran Klukas</a></code></i>
+	<i><code>&copy 2025-present <a href="https://github.com/taciturnaxolotl">Kieran Klukas</a></code></i>
 </p>
 
 <p align="center">
-	<a href="https://github.com/taciturnaxolotl/carriage/blob/master/LICENSE.md"><img src="https://img.shields.io/static/v1.svg?style=for-the-badge&label=License&message=AGPL 3.0&logoColor=d9e0ee&colorA=363a4f&colorB=b7bdf8"/></a>
+	<a href="https://github.com/taciturnaxolotl/hn-alerts/blob/master/LICENSE.md"><img src="https://img.shields.io/static/v1.svg?style=for-the-badge&label=License&message=MIT&logoColor=d9e0ee&colorA=363a4f&colorB=b7bdf8"/></a>
 </p>
