@@ -1,37 +1,9 @@
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import type { Pool } from "pg";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
 // Define the users table
-export const users = pgTable("users", {
+export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   hackernewsUsername: text("hackernews_username"),
   challenge: text("challenge"),
-  verified: boolean("verified").default(false),
-  createdAt: timestamp("created_at")
-    .$defaultFn(() => new Date())
-    .notNull(),
-  updatedAt: timestamp("updated_at")
-    .$defaultFn(() => new Date())
-    .notNull(),
+  verified: integer("verified", { mode: "boolean" }).default(false).notNull(),
 });
-
-export async function setupTriggers(pool: Pool) {
-  await pool.query(`
-    -- Create or replace the update function
-    CREATE OR REPLACE FUNCTION update_user_updated_at()
-    RETURNS TRIGGER AS $$
-    BEGIN
-      NEW.updated_at = NOW();
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-
-    -- Drop trigger if exists and create a new one
-    DROP TRIGGER IF EXISTS update_user_updated_at_trigger ON users;
-
-    CREATE TRIGGER update_user_updated_at_trigger
-    BEFORE UPDATE ON users
-    FOR EACH ROW
-    EXECUTE FUNCTION update_user_updated_at();
-  `);
-}

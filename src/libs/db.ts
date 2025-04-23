@@ -1,14 +1,15 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/bun-sqlite";
+import { Database } from "bun:sqlite";
 import * as schema from "./schema";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Use environment variable for the database path in production
+const dbPath = process.env.DATABASE_PATH || "./local.db";
 
-export const db = drizzle(pool, { schema });
+// Create a SQLite database instance using Bun's built-in driver
+const sqlite = new Database(dbPath);
 
-// Set up triggers when initializing the database
-schema.setupTriggers(pool).catch(console.error);
+// Create a Drizzle instance with the database and schema
+export const db = drizzle(sqlite, { schema });
 
-export { pool, schema };
+// Export the sqlite instance and schema for use in other files
+export { sqlite, schema };

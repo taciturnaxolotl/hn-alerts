@@ -1,5 +1,5 @@
-import { linkUserSetup } from "./handler/linking";
+import { commandSetup } from "./routing/commad";
 
 export default async function setup() {
-  linkUserSetup();
+  commandSetup();
 }
