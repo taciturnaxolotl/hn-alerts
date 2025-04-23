@@ -1,10 +1,12 @@
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import type { Pool } from "pg";
 
 // Define the users table
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   hackernewsUsername: text("hackernews_username"),
+  challenge: text("challenge"),
+  verified: boolean("verified").default(false),
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())
     .notNull(),
