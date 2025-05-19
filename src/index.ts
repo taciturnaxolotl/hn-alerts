@@ -35,6 +35,7 @@ Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment,
   release: version,
+  sendClientReports: environment === "production",
 });
 
 console.log(
