@@ -225,18 +225,34 @@ async function processStories() {
 
           // Add a leaderboard snapshot directly with SQL query
           if (story.id) {
-            console.log(`Adding leaderboard snapshot for new story ID ${story.id} at position ${position}`);
+            console.log(
+              `Adding leaderboard snapshot for new story ID ${story.id} at position ${position}`,
+            );
             try {
               // Use direct SQL to avoid Drizzle ORM issues
-              await sqlite.run(`
+              await sqlite.run(
+                `
                 INSERT INTO leaderboard_snapshots (story_id, timestamp, position, score, expires_at)
                 VALUES (?, ?, ?, ?, ?)
-              `, [story.id, currentTime, position, story.score, snapshotExpiresAt]);
+              `,
+                [
+                  story.id,
+                  currentTime,
+                  position,
+                  story.score,
+                  snapshotExpiresAt,
+                ],
+              );
             } catch (error) {
-              console.error(`Failed to insert leaderboard snapshot for story ${story.id}:`, error);
+              console.error(
+                `Failed to insert leaderboard snapshot for story ${story.id}:`,
+                error,
+              );
             }
           } else {
-            console.error(`[ERROR] Cannot add leaderboard snapshot: story.id is missing or invalid (${story.id})`);
+            console.error(
+              `[ERROR] Cannot add leaderboard snapshot: story.id is missing or invalid (${story.id})`,
+            );
           }
         }
 
@@ -297,18 +313,34 @@ async function processStories() {
 
           // Add a leaderboard snapshot directly with SQL query
           if (story.id) {
-            console.log(`Adding leaderboard snapshot for existing story ID ${story.id} at position ${position}`);
+            console.log(
+              `Adding leaderboard snapshot for existing story ID ${story.id} at position ${position}`,
+            );
             try {
               // Use direct SQL to avoid Drizzle ORM issues
-              await sqlite.run(`
+              await sqlite.run(
+                `
                 INSERT INTO leaderboard_snapshots (story_id, timestamp, position, score, expires_at)
                 VALUES (?, ?, ?, ?, ?)
-              `, [story.id, currentTime, position, story.score, snapshotExpiresAt]);
+              `,
+                [
+                  story.id,
+                  currentTime,
+                  position,
+                  story.score,
+                  snapshotExpiresAt,
+                ],
+              );
             } catch (error) {
-              console.error(`Failed to insert leaderboard snapshot for story ${story.id}:`, error);
+              console.error(
+                `Failed to insert leaderboard snapshot for story ${story.id}:`,
+                error,
+              );
             }
           } else {
-            console.error(`[ERROR] Cannot add leaderboard snapshot for existing story: story.id is missing or invalid (${story.id})`);
+            console.error(
+              `[ERROR] Cannot add leaderboard snapshot for existing story: story.id is missing or invalid (${story.id})`,
+            );
           }
         }
 
@@ -441,11 +473,11 @@ async function processStories() {
           );
         }
       }
-      console.log(`Completed processing all story updates`);
+      console.log("Completed processing all story updates");
     }
 
     // Mark stories that have exited the leaderboard
-    console.log(`Checking for stories that have exited the leaderboard...`);
+    console.log("Checking for stories that have exited the leaderboard...");
     await db
       .update(storiesTable)
       .set({
@@ -542,19 +574,27 @@ async function recordLeaderboardSnapshot({
       Math.floor(addDays(new Date(), RETENTION_DAYS).getTime() / 1000);
 
     // Only insert if we have a valid story ID
-    if (storyId && !isNaN(Number(storyId))) {
+    if (storyId && !Number.isNaN(Number(storyId))) {
       try {
         // Use direct SQL to avoid Drizzle ORM issues
-        await sqlite.run(`
+        sqlite.run(
+          `
           INSERT INTO leaderboard_snapshots (story_id, timestamp, position, score, expires_at)
           VALUES (?, ?, ?, ?, ?)
-        `, [Number(storyId), timestamp, position, score, snapshotExpiresAt]);
+        `,
+          [Number(storyId), timestamp, position, score, snapshotExpiresAt],
+        );
       } catch (error) {
-        console.error(`Error inserting leaderboard snapshot for story ${storyId}:`, error);
+        console.error(
+          `Error inserting leaderboard snapshot for story ${storyId}:`,
+          error,
+        );
         Sentry.captureException(error);
       }
     } else {
-      console.error(`Skipped recording leaderboard snapshot: invalid story ID (${storyId})`);
+      console.error(
+        `Skipped recording leaderboard snapshot: invalid story ID (${storyId})`,
+      );
     }
   } catch (error) {
     console.error("Error recording leaderboard snapshot:", error);
