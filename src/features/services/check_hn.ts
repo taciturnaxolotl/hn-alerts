@@ -17,7 +17,12 @@ import {
   count,
   inArray,
 } from "drizzle-orm";
-import { getNewStories, getItems, type Story } from "../../libs/hackernews";
+import {
+  getNewStories,
+  getItems,
+  type Story,
+  getTopStories,
+} from "../../libs/hackernews";
 import { addDays } from "../../libs/time";
 import type { AnyMessageBlock } from "slack-edge";
 import { sqlite } from "../../libs/db";
@@ -75,7 +80,7 @@ async function processStories() {
     // Fetch the latest stories - position in array determines leaderboard position
     // Only one API call to get new stories instead of separate calls for new and top stories
     console.log("Making API call to get story IDs...");
-    const storyIds = await getNewStories();
+    const storyIds = await getTopStories();
     if (!storyIds.length) {
       console.log("No stories found from API");
       return;
@@ -230,7 +235,7 @@ async function processStories() {
             );
             try {
               // Use direct SQL to avoid Drizzle ORM issues
-              await sqlite.run(
+              sqlite.run(
                 `
                 INSERT INTO leaderboard_snapshots (story_id, timestamp, position, score, expires_at)
                 VALUES (?, ?, ?, ?, ?)
@@ -318,7 +323,7 @@ async function processStories() {
             );
             try {
               // Use direct SQL to avoid Drizzle ORM issues
-              await sqlite.run(
+              sqlite.run(
                 `
                 INSERT INTO leaderboard_snapshots (story_id, timestamp, position, score, expires_at)
                 VALUES (?, ?, ?, ?, ?)

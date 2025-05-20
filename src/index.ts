@@ -69,7 +69,7 @@ const server = Bun.serve({
         // Get stories that reached the front page (leaderboard)
         const storyAlerts = await db.query.stories.findMany({
           where: (stories, { eq }) => eq(stories.isOnLeaderboard, true),
-          orderBy: (stories, { desc }) => [desc(stories.position)],
+          orderBy: (stories, { asc }) => [asc(stories.position)],
           limit: 100,
         });
 
