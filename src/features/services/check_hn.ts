@@ -319,7 +319,12 @@ async function processTopStories() {
             storyUpdates.peakPositionAt = currentTime;
 
             // Special case: if it just became #1 and we haven't sent a #1 notification
-            if (isNumberOne && !existingStory.notifiedNumberOne) {
+            // Only notify for verified users
+            if (
+              isNumberOne &&
+              !existingStory.notifiedNumberOne &&
+              isFromVerifiedUser
+            ) {
               storyUpdates.notifiedAt = existingStory.notifiedAt || currentTime;
               storyUpdates.notifiedNumberOne = true;
               shouldSendNotification = true;
@@ -347,7 +352,6 @@ async function processTopStories() {
     }
 
     // Mark stories that have exited the leaderboard
-    const frontPageIdSet = new Set(frontPageIds);
     await db
       .update(storiesTable)
       .set({
