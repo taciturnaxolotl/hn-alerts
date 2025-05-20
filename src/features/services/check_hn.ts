@@ -264,7 +264,7 @@ async function processTopStories() {
         });
 
         // Send a notification only if it's from a verified user or if it's #1
-        if (isFromVerifiedUser || isNumberOne) {
+        if (isFromVerifiedUser) {
           await sendNotification(
             story,
             isNumberOne ? "number_one_story" : "front_page_story",
