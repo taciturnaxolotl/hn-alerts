@@ -1,6 +1,6 @@
 import { CronJob } from "cron";
 import * as Sentry from "@sentry/bun";
-import { db } from "../../index";
+import { db, environment } from "../../index";
 import {
   users as usersTable,
   stories as storiesTable,
@@ -522,16 +522,17 @@ const CronJobWithCheckIn = Sentry.cron.instrumentCron(
  */
 export function setupHackerNewsMonitoring() {
   // Create and start the scheduled job
-  const job = CronJobWithCheckIn.from({
-    cronTime: CHECK_INTERVAL, // Check every 5 minutes (configurable)
-    onTick: checkHackerNews,
-    start: true,
-    timeZone: "UTC",
-  });
+  if (environment === "production") {
+    const job = CronJobWithCheckIn.from({
+      cronTime: CHECK_INTERVAL, // Check every 5 minutes (configurable)
+      onTick: checkHackerNews,
+      start: true,
+      timeZone: "UTC",
+    });
+  }
 
   // Run immediately on startup
   checkHackerNews();
 
   console.log("HackerNews monitoring service started");
-  return job;
 }
