@@ -4,4 +4,4 @@ git fetch --all
 git reset --hard origin/main
 bun install
 bun db:push
-systemctl --user restart smokie
+systemctl --user restart hn-alerts
