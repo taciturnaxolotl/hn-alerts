@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
     "ngrok": "ngrok http 3000 --domain=casual-renewing-reptile.ngrok-free.app",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
