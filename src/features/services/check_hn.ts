@@ -128,6 +128,7 @@ async function processNewStories() {
           score: story.score,
           descendants: story.descendants,
           lastUpdatedAt: currentTime,
+          position: existingStory.position,
         };
 
         // Determine if notification status needs updating
@@ -245,6 +246,7 @@ async function processTopStories() {
           notifiedNewStory: notifiedNewStory,
           isOnLeaderboard: true,
           enteredLeaderboardAt: currentTime,
+          position: position,
           peakPosition: position,
           peakPositionAt: currentTime,
           peakScore: story.score,
@@ -275,6 +277,7 @@ async function processTopStories() {
         const storyUpdates: Partial<typeof storiesTable.$inferSelect> = {
           score: story.score,
           descendants: story.descendants,
+          position: position,
           lastUpdatedAt: currentTime,
           // Update this in case we didn't know before
           isFromMonitoredUser:

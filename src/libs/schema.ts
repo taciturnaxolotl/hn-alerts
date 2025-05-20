@@ -16,17 +16,24 @@ export const stories = sqliteTable("stories", {
   text: text("text"),
   time: integer("time").notNull(),
   score: integer("score"),
+  position: integer("position"),
   descendants: integer("descendants"),
 
   // New tracking fields
   firstSeenAt: integer("first_seen_at").notNull(), // When we first saw it
   lastUpdatedAt: integer("last_updated_at").notNull(), // Last time we updated this record
   notifiedAt: integer("notified_at"), // When first notification was sent
-  
+
   // Notification tracking flags - avoids duplicate notifications on restart
-  notifiedNewStory: integer("notified_new_story", { mode: "boolean" }).default(false),
-  notifiedFrontPage: integer("notified_front_page", { mode: "boolean" }).default(false),
-  notifiedNumberOne: integer("notified_number_one", { mode: "boolean" }).default(false),
+  notifiedNewStory: integer("notified_new_story", { mode: "boolean" }).default(
+    false,
+  ),
+  notifiedFrontPage: integer("notified_front_page", {
+    mode: "boolean",
+  }).default(false),
+  notifiedNumberOne: integer("notified_number_one", {
+    mode: "boolean",
+  }).default(false),
 
   // Leaderboard tracking
   isOnLeaderboard: integer("is_on_leaderboard", { mode: "boolean" }).default(

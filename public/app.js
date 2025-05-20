@@ -11,12 +11,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // Chart instance
   let chart = null;
   let activeStoryId = null;
+  let topRankRecord = Number.POSITIVE_INFINITY; // Track the all-time best rank
 
   // Fetch stories data
   function fetchStories() {
     storyList.innerHTML = '<div class="loading">Loading stories...</div>';
 
-    fetch("/api/alerts")
+    fetch("/api/stories")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Network response was not ok");
@@ -26,6 +27,8 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((data) => {
         // Remove duplicate stories (keep the one with best rank)
         const uniqueStories = removeDuplicateStories(data);
+        // Sort stories by points instead of rank
+        uniqueStories.sort((a, b) => b.points - a.points);
         displayStories(uniqueStories);
         updateStats(uniqueStories);
       })
@@ -57,18 +60,47 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Sort stories by rank (lowest/best rank first)
-    stories.sort((a, b) => a.rank - b.rank);
+    // Update the all-time top rank record
+    const bestRank = Math.min(...stories.map((s) => s.rank));
+    const isNewTopRecord = bestRank < topRankRecord;
+    if (isNewTopRecord) {
+      topRankRecord = bestRank;
+    }
 
     let html = "";
-    for (const story of stories) {
+    for (let i = 0; i < stories.length; i++) {
+      const story = stories[i];
       const date = new Date(story.timestamp).toLocaleString();
+      const isCurrentRankOne = i + 1 === 1; // Check if current rank is 1
+      const isBestRankOne = story.rank === 1; // Check if best rank is 1
+      const isCurrentTop = i === 0;
+
+      // Build the rank display with icons
+      let rankDisplay = `<p>Current Rank: #${i + 1}`;
+
+      // Add trophy for current rank if it's 1
+      if (isCurrentRankOne) {
+        rankDisplay +=
+          ' <span class="trophy" title="Top Ranked Story">🏆</span>';
+      }
+
+      rankDisplay += ` | Best Rank: #${story.rank}`;
+
+      // Add star for best rank if it's 1
+      if (isBestRankOne) {
+        rankDisplay +=
+          ' <span class="former-top" title="Previously Top Ranked">⭐</span>';
+      }
+
+      rankDisplay += "</p>";
+
       html += `
-        <div class="story-item" data-id="${story.id}" data-url="${story.url}">
+        <div class="story-item${isCurrentTop ? " top-story" : ""}${isCurrentRankOne ? " top-ranked" : ""}${isBestRankOne && !isCurrentRankOne ? " previously-top-ranked" : ""}" data-id="${story.id}" data-url="${story.url}">
             <h3>${story.title}</h3>
-            <p>Best Rank: #${story.rank}</p>
+            ${rankDisplay}
             <div class="story-meta">
                 <span>Points: ${story.points}</span>
+                <span>Peak Points: ${story.peakPoints || story.points}</span>
                 <span>Comments: ${story.comments}</span>
                 <span>By: ${story.by}</span>
             </div>

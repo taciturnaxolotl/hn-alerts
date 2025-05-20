@@ -64,12 +64,12 @@ const server = Bun.serve({
   reusePort: true,
   routes: {
     "/": root,
-    "/api/alerts": async () => {
+    "/api/stories": async () => {
       try {
         // Get stories that reached the front page (leaderboard)
         const storyAlerts = await db.query.stories.findMany({
           where: (stories, { eq }) => eq(stories.isOnLeaderboard, true),
-          orderBy: (stories, { desc }) => [desc(stories.enteredLeaderboardAt)],
+          orderBy: (stories, { desc }) => [desc(stories.position)],
           limit: 100,
         });
 
@@ -78,8 +78,10 @@ const server = Bun.serve({
           id: story.id,
           title: story.title,
           url: story.url || `https://news.ycombinator.com/item?id=${story.id}`,
-          rank: story.peakPosition || 30, // Default to 30 if no position recorded
-          points: story.peakScore || story.score,
+          rank: story.position,
+          peakRank: story.peakPosition,
+          points: story.score,
+          peakPoints: story.peakScore,
           comments: story.descendants,
           timestamp: story.enteredLeaderboardAt
             ? new Date(story.enteredLeaderboardAt * 1000).toISOString()
