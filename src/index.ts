@@ -4,6 +4,8 @@ import setup from "./features";
 import { db } from "./libs/db";
 import { version, name } from "../package.json";
 import root from "../public/index.html";
+import { count } from "drizzle-orm";
+import { stories } from "./libs/schema";
 
 const environment = process.env.NODE_ENV;
 const commit = (() => {
@@ -87,6 +89,7 @@ const server = Bun.serve({
             ? new Date(story.enteredLeaderboardAt * 1000).toISOString()
             : new Date(story.firstSeenAt * 1000).toISOString(),
           by: story.by,
+          isFromMonitoredUser: story.isFromMonitoredUser,
         }));
 
         return new Response(JSON.stringify(alerts), {
@@ -96,6 +99,75 @@ const server = Bun.serve({
         console.error("Failed to fetch alerts:", error);
         return new Response(
           JSON.stringify({ error: "Failed to fetch alerts" }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+    },
+    "/api/stats/total-stories": async () => {
+      try {
+        // Count all stories in the database
+        const result = await db.select({ count: count() }).from(stories);
+        const totalCount = Number(result[0]?.count);
+
+        return new Response(
+          JSON.stringify({
+            count: totalCount,
+            timestamp: Math.floor(Date.now() / 1000),
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        console.error("Failed to count stories:", error);
+        return new Response(
+          JSON.stringify({ error: "Failed to count stories" }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+    },
+    "/api/stats/verified-users": async () => {
+      try {
+        // Get stats for verified user stories
+        const verifiedStories = await db.query.stories.findMany({
+          where: (stories, { eq }) => eq(stories.isFromMonitoredUser, true),
+        });
+
+        // Count stories on front page (rank <= 30)
+        const frontPageCount = verifiedStories.filter(
+          (s) => s.isOnLeaderboard,
+        ).length;
+
+        // Calculate average peak points for verified users
+        let totalPeakPoints = 0;
+        for (const s of verifiedStories) {
+          if (s.peakScore) totalPeakPoints += s.peakScore;
+        }
+        const avgPeakPoints = verifiedStories.length
+          ? Math.round(totalPeakPoints / verifiedStories.length)
+          : 0;
+
+        return new Response(
+          JSON.stringify({
+            totalCount: verifiedStories.length,
+            frontPageCount: frontPageCount,
+            avgPeakPoints: avgPeakPoints,
+            timestamp: Math.floor(Date.now() / 1000),
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      } catch (error) {
+        console.error("Failed to get verified user stats:", error);
+        return new Response(
+          JSON.stringify({ error: "Failed to get verified user stats" }),
           {
             status: 500,
             headers: { "Content-Type": "application/json" },

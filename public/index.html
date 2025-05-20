@@ -92,16 +92,19 @@
                 margin-bottom: 1rem;
                 border-left: 4px solid var(--hn-orange);
                 cursor: pointer;
-                transition: transform 0.1s ease;
+                transition: transform 0.1s ease, box-shadow 0.2s ease;
+                position: relative;
             }
 
             .story-item:hover {
                 transform: translateX(4px);
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
             }
 
             .story-item.active {
                 border-left-width: 8px;
                 font-weight: bold;
+                box-shadow: 0 2px 8px rgba(255, 102, 0, 0.2);
             }
 
             .story-item h3 {
@@ -130,17 +133,65 @@
 
             .stat-card {
                 flex: 1;
-                min-width: 200px;
+                min-width: 180px;
+                max-width: 250px;
                 padding: 1rem;
                 background-color: var(--bg-secondary);
                 border-radius: 5px;
                 text-align: center;
+                transition: transform 0.1s ease-in-out;
+            }
+            
+            .stat-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+            
+            .top-ranked {
+                background: linear-gradient(to right, rgba(255, 102, 0, 0.1), var(--bg-secondary) 70%);
+            }
+            
+            .top-ranked::after {
+                content: "🏆";
+                position: absolute;
+                top: 0.5rem;
+                right: 2.5rem;
+                font-size: 1.5rem;
+            }
+            
+            .previously-top-ranked {
+                background: linear-gradient(to right, rgba(255, 205, 0, 0.05), var(--bg-secondary) 70%);
+            }
+            
+            .previously-top-ranked::after {
+                content: "⭐";
+                position: absolute;
+                top: 0.5rem;
+                right: 2.5rem;
+                font-size: 1.5rem;
             }
 
             .stat-number {
                 font-size: 2rem;
                 font-weight: bold;
                 color: var(--hn-orange);
+                margin-bottom: 0.5rem;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .controls {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+
+            .filter-controls {
+                display: flex;
+                gap: 1rem;
+                align-items: center;
             }
 
             .refresh-button {
@@ -155,6 +206,56 @@
             .refresh-button:hover {
                 background-color: var(--hn-orange-hover);
             }
+            
+            /* Toggle Switch Styles */
+            .toggle-switch {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                cursor: pointer;
+                user-select: none;
+            }
+            
+            .toggle-switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+            
+            .toggle-slider {
+                position: relative;
+                display: inline-block;
+                width: 40px;
+                height: 20px;
+                background-color: #ccc;
+                border-radius: 34px;
+                transition: .4s;
+                margin-right: 10px;
+            }
+            
+            .toggle-slider:before {
+                position: absolute;
+                content: "";
+                height: 16px;
+                width: 16px;
+                left: 2px;
+                bottom: 2px;
+                background-color: white;
+                border-radius: 50%;
+                transition: .4s;
+            }
+            
+            input:checked + .toggle-slider {
+                background-color: var(--hn-orange);
+            }
+            
+            input:checked + .toggle-slider:before {
+                transform: translateX(20px);
+            }
+            
+            .toggle-label {
+                font-size: 0.9rem;
+            }
 
             .no-graph {
                 display: flex;
@@ -164,6 +265,121 @@
                 color: var(--text-secondary);
                 text-align: center;
             }
+            
+            .performance-summary {
+                margin: 2rem 0;
+            }
+            
+            .performance-summary h2 {
+                margin-bottom: 1rem;
+                border-bottom: 2px solid var(--hn-orange);
+                padding-bottom: 0.5rem;
+            }
+            
+            .performance-metrics-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+                padding: 0.5rem 0;
+            }
+            
+            .performance-metric {
+                flex: 1;
+                min-width: 200px;
+                background-color: var(--bg-secondary);
+                border-radius: 5px;
+                padding: 1.5rem;
+                text-align: center;
+                transition: transform 0.2s, box-shadow 0.2s;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            
+            .performance-metric:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            }
+            
+            .metric-label {
+                font-size: 1rem;
+                font-weight: bold;
+                color: var(--hn-orange);
+                margin-bottom: 0.5rem;
+            }
+            
+            .metric-value {
+                font-size: 2rem;
+                font-weight: bold;
+                margin: 0.5rem 0;
+            }
+            
+            .metric-description {
+                font-size: 0.8rem;
+                color: var(--text-secondary);
+            }
+            
+            .verified-badge {
+                position: absolute;
+                top: 0.5rem;
+                right: 0.5rem;
+                background-color: #4CAF50;
+                color: white;
+                font-size: 0.7rem;
+                padding: 0.1rem 0.4rem;
+                border-radius: 3px;
+                font-weight: bold;
+             }
+             
+             .donut-chart-container {
+                margin-top: 2rem;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 250px;
+             }
+             
+             .donut-chart {
+                width: 200px;
+                height: 200px;
+                position: relative;
+             }
+             
+             .donut-chart-text {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                text-align: center;
+             }
+             
+             .donut-chart-text .percentage {
+                font-size: 2rem;
+                font-weight: bold;
+                color: var(--hn-orange);
+             }
+             
+             .donut-chart-text .label {
+                font-size: 0.9rem;
+                color: var(--text-secondary);
+             }
+             
+             .chart-legend {
+                display: flex;
+                justify-content: center;
+                gap: 2rem;
+                margin-top: 1rem;
+             }
+             
+             .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+             }
+             
+             .legend-color {
+                width: 16px;
+                height: 16px;
+                border-radius: 4px;
+             }
         </style>
     </head>
     <body>
@@ -181,22 +397,81 @@
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-number" id="total-alerts">-</div>
-                <div>Total Alerts</div>
+                <div>Verified FP Stories</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number" id="unique-stories">-</div>
-                <div>Unique Stories</div>
+                <div class="stat-number" id="avg-peak-points">-</div>
+                <div>Verified Avg Points</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number" id="highest-rank">-</div>
-                <div>Best Rank</div>
+                <div class="stat-number" id="verified-count">-</div>
+                <div>Total Verified Stories</div>
             </div>
         </div>
 
-        <div>
+        <div class="performance-summary">
+            <h2>Performance Dashboard</h2>
+            <div class="performance-metrics-container">
+                <div class="performance-metric">
+                    <div class="metric-label">Total Stories</div>
+                    <div class="metric-value" id="current-frontpage-count">-</div>
+                    <div class="metric-description">Stories tracked in database</div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-label">Highest Points</div>
+                    <div class="metric-value" id="top-ten-count">-</div>
+                    <div class="metric-description">Most upvoted story</div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-label">Average Points</div>
+                    <div class="metric-value" id="most-active-time">-</div>
+                    <div class="metric-description">Per story</div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-label">Average Time on FP</div>
+                    <div class="metric-value" id="avg-frontpage-time">-</div>
+                    <div class="metric-description">Hours:minutes</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="performance-summary">
+            <h2>Verified User Analytics</h2>
+            <div class="performance-metrics-container">
+                <div class="performance-metric">
+                    <div class="metric-label">Verified Users</div>
+                    <div class="metric-value" id="verified-user-count">-</div>
+                    <div class="metric-description">Unique verified authors</div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-label">Success Rate</div>
+                    <div class="metric-value" id="verified-success-rate">-</div>
+                    <div class="metric-description">% reaching top 10</div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-label">Verified Top Performer</div>
+                    <div class="metric-value" id="verified-top-author">-</div>
+                    <div class="metric-description">Most successful verified user</div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-label">Average Peak Points</div>
+                    <div class="metric-value" id="verified-avg-points">-</div>
+                    <div class="metric-description">For verified user stories</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
             <button class="refresh-button" id="refresh-data">
                 Refresh Data
             </button>
+            <div class="filter-controls">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="verified-only-toggle">
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">Verified Users Only</span>
+                </label>
+            </div>
         </div>
 
         <div class="main-container">
