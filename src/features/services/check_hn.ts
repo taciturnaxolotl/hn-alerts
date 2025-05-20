@@ -88,9 +88,8 @@ async function processStories() {
 
     console.log(`Retrieved ${storyIds.length} story IDs from HackerNews API`);
 
-    // Front page is considered the top stories (first N in the array)
-    const frontPageIds = storyIds.slice(0, TOP_STORIES_LIMIT);
-    console.log(`Front page contains the top ${TOP_STORIES_LIMIT} stories`);
+    // We'll use this to track non-job stories for front page consideration
+    const nonJobStoryIds: number[] = [];
 
     // Batch fetch story details - limit to first 500 to avoid overloading
     console.log(
@@ -145,21 +144,57 @@ async function processStories() {
 
     console.log("Starting to process stories with detailed debugging...");
 
+    // First, filter out job stories and create a map of adjusted positions
+    const positionMap = new Map<number, number>(); // Maps story ID to adjusted position
+    let adjustedPosition = 0;
+    
+    for (let i = 0; i < stories.length; i++) {
+      const story = stories[i];
+      if (!story) continue;
+      
+      // Skip jobs, but include other types (mainly 'story')
+      if (story.type === 'job') {
+        console.log(`[INFO] Skipping job at original position ${i + 1}, ID: ${story.id}`);
+        continue;
+      }
+      
+      // Only increment position for non-job stories
+      adjustedPosition++;
+      positionMap.set(story.id, adjustedPosition);
+      
+      // Add to non-job story IDs for front page consideration
+      if (adjustedPosition <= TOP_STORIES_LIMIT) {
+        nonJobStoryIds.push(story.id);
+      }
+    }
+    
+    console.log(`Filtered out job stories. Have ${adjustedPosition} stories after filtering.`);
+    console.log(`Front page contains the top ${Math.min(TOP_STORIES_LIMIT, nonJobStoryIds.length)} non-job stories`);
+    
+    // Now use the adjusted positions when processing stories
+    const frontPageIds = nonJobStoryIds.slice(0, TOP_STORIES_LIMIT);
+    
     // Process each story
     for (let i = 0; i < stories.length; i++) {
       const story = stories[i];
-      const position = i + 1; // Position is 1-based, matching index in the feed
+      if (!story) {
+        console.log(`[WARNING] Null story at original position ${i + 1}, skipping`);
+        continue;
+      }
+      
+      // Skip job stories entirely
+      if (story.type === 'job') {
+        continue;
+      }
+      
+      // Use the adjusted position for non-job stories
+      const position = positionMap.get(story.id) || (i + 1);
       const isOnFrontPage = position <= TOP_STORIES_LIMIT;
       const isNumberOne = position === 1;
 
-      if (!story) {
-        console.log(`[WARNING] Null story at position ${position}, skipping`);
-        continue;
-      }
-
-      if (!story.by || story.type !== "story") {
+      if (!story.by) {
         console.log(
-          `[WARNING] Invalid story at position ${position}, ID: ${story.id}, type: ${story.type}, by: ${story.by}, skipping`,
+          `[WARNING] Invalid story at adjusted position ${position}, ID: ${story.id}, type: ${story.type}, by: ${story.by}, skipping`,
         );
         continue;
       }
