@@ -4,6 +4,7 @@ import { db, environment } from "../../index";
 import {
   users as usersTable,
   stories as storiesTable,
+  leaderboardSnapshots,
 } from "../../libs/schema";
 import { eq, and, isNull, lt, gte, notInArray, not, count } from "drizzle-orm";
 import {
@@ -252,6 +253,16 @@ async function processTopStories() {
           expiresAt: expiresAt,
         });
 
+        // Also record a leaderboard snapshot for the story's first appearance
+        await recordLeaderboardSnapshot({
+          storyId: story.id,
+          position,
+          score: story.score,
+          timestamp: currentTime,
+          isFromVerifiedUser,
+          expiresAt,
+        });
+
         // Send a notification only if it's from a verified user or if it's #1
         if (isFromVerifiedUser || isNumberOne) {
           await sendNotification(
@@ -269,6 +280,16 @@ async function processTopStories() {
           isFromMonitoredUser:
             isFromVerifiedUser || existingStory.isFromMonitoredUser,
         };
+
+        // Record this snapshot in the leaderboard history - used for graphs
+        await recordLeaderboardSnapshot({
+          storyId: story.id,
+          position,
+          score: story.score,
+          timestamp: currentTime,
+          isFromVerifiedUser,
+          expiresAt: calculateExpirationTime(isFromVerifiedUser),
+        });
 
         let shouldSendNotification = false;
         let notificationType: "front_page_story" | "number_one_story" =
@@ -369,6 +390,45 @@ async function isVerifiedUser(username: string): Promise<boolean> {
 /**
  * Clean up expired stories
  */
+/**
+ * Record a snapshot of a story's position on the leaderboard
+ * This data can be used to generate graphs showing position over time
+ */
+async function recordLeaderboardSnapshot({
+  storyId,
+  position,
+  score,
+  timestamp,
+  isFromVerifiedUser,
+  expiresAt,
+}: {
+  storyId: number;
+  position: number;
+  score: number;
+  timestamp: number;
+  isFromVerifiedUser: boolean;
+  expiresAt: number | null;
+}) {
+  try {
+    // Calculate TTL for the snapshot - either match story TTL or use default
+    const snapshotExpiresAt =
+      expiresAt ||
+      Math.floor(addDays(new Date(), RETENTION_DAYS).getTime() / 1000);
+
+    // Add the snapshot to the leaderboard_snapshots table
+    await db.insert(leaderboardSnapshots).values({
+      storyId,
+      timestamp,
+      position,
+      score,
+      expiresAt: snapshotExpiresAt,
+    });
+  } catch (error) {
+    console.error("Error recording leaderboard snapshot:", error);
+    Sentry.captureException(error);
+  }
+}
+
 async function cleanupExpiredStories() {
   try {
     const currentTime = Math.floor(Date.now() / 1000);
@@ -400,8 +460,25 @@ async function cleanupExpiredStories() {
           ),
         );
     }
+
+    // Also clean up expired leaderboard snapshots
+    const expiredSnapshotsCount = await db
+      .select({ count: count() })
+      .from(leaderboardSnapshots)
+      .where(lt(leaderboardSnapshots.expiresAt, currentTime))
+      .then((a) => a[0]);
+
+    if (expiredSnapshotsCount && Number(expiredSnapshotsCount.count) > 0) {
+      console.log(
+        `Cleaning up ${expiredSnapshotsCount.count} expired leaderboard snapshots`,
+      );
+
+      await db
+        .delete(leaderboardSnapshots)
+        .where(lt(leaderboardSnapshots.expiresAt, currentTime));
+    }
   } catch (error) {
-    console.error("Error cleaning up expired stories:", error);
+    console.error("Error cleaning up expired data:", error);
     Sentry.captureException(error);
   }
 }
