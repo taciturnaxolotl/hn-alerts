@@ -8,7 +8,6 @@ import {
 } from "../../libs/schema";
 import { eq, and, isNull, lt, gte, notInArray, not, count } from "drizzle-orm";
 import {
-  getTopStories,
   getNewStories,
   getItems,
   type Story,
@@ -35,11 +34,11 @@ function calculateExpirationTime(isFromVerifiedUser: boolean): number | null {
 }
 
 /**
- * Process new stories from HackerNews
+ * Process stories from HackerNews - handles both new and top stories
  */
-async function processNewStories() {
+async function processStories() {
   try {
-    console.log("Fetching new HackerNews stories...");
+    console.log("Fetching HackerNews stories...");
 
     // Get all verified users from our database
     const verifiedUsers = await db
@@ -64,27 +63,36 @@ async function processNewStories() {
         ),
     );
 
-    // Fetch the latest stories
-    const newStoryIds = await getNewStories();
-    if (!newStoryIds.length) {
-      console.log("No new stories found");
+    // Fetch the latest stories - position in array determines leaderboard position
+    // Only one API call to get new stories instead of separate calls for new and top stories
+    const storyIds = await getNewStories();
+    if (!storyIds.length) {
+      console.log("No stories found");
       return;
     }
 
-    console.log(`Processing ${newStoryIds.length} stories from 'new' feed`);
+    console.log(`Processing ${storyIds.length} stories`);
 
-    // Batch fetch story details - limit to first 100 to avoid overloading
-    const newStories = await getItems<Story>(newStoryIds.slice(0, 100));
+    // Front page is considered the top stories
+    const frontPageIds = storyIds.slice(0, TOP_STORIES_LIMIT);
+    
+    // Batch fetch story details - limit to first 500 to avoid overloading
+    const stories = await getItems<Story>(storyIds.slice(0, 500));
 
     // Get current timestamp in seconds
     const currentTime = Math.floor(Date.now() / 1000);
 
     // Process each story
-    for (const story of newStories) {
-      if (!story.by || story.type !== "story") continue;
+    for (let i = 0; i < stories.length; i++) {
+      const story = stories[i];
+      const position = i + 1; // Position is 1-based, matching index in the feed
+      const isOnFrontPage = position <= TOP_STORIES_LIMIT;
+      const isNumberOne = position === 1;
+      if (!story || !story.by || story.type !== "story") continue;
 
       const storyAuthor = story.by.toLowerCase();
       const isFromVerifiedUser = verifiedUserMap.has(storyAuthor);
+      const isOnLeaderboard = isOnFrontPage;
 
       // Check if story already exists in our database
       const existingStory = await db
@@ -97,134 +105,10 @@ async function processNewStories() {
         // New story - add to database
         const expiresAt = calculateExpirationTime(isFromVerifiedUser);
 
-        await db.insert(storiesTable).values({
-          id: story.id,
-          by: story.by,
-          title: story.title,
-          url: story.url,
-          text: story.text,
-          time: story.time,
-          score: story.score,
-          descendants: story.descendants,
-          firstSeenAt: currentTime,
-          lastUpdatedAt: currentTime,
-          notifiedAt: isFromVerifiedUser ? currentTime : null,
-          // Set notification flags
-          notifiedNewStory: isFromVerifiedUser,
-          notifiedFrontPage: false,
-          notifiedNumberOne: false,
-          isOnLeaderboard: false,
-          isFromMonitoredUser: isFromVerifiedUser,
-          expiresAt: expiresAt,
-        });
-
-        // Send alert only for verified users' new stories
-        if (isFromVerifiedUser) {
-          await sendNotification(story, "new_story_by_verified_user");
-        }
-      } else {
-        // Existing story - update stats
-        const storyUpdates: Partial<typeof storiesTable.$inferSelect> = {
-          score: story.score,
-          descendants: story.descendants,
-          lastUpdatedAt: currentTime,
-          position: existingStory.position,
-        };
-
-        // Determine if notification status needs updating
-        let shouldNotify = false;
-
-        // If it's from a verified user but we previously didn't know, update that
-        if (isFromVerifiedUser && !existingStory.isFromMonitoredUser) {
-          storyUpdates.isFromMonitoredUser = true;
-          storyUpdates.expiresAt = null; // Remove expiration for verified users
-
-          // If we haven't sent a new story notification yet, do so now
-          if (!existingStory.notifiedNewStory) {
-            storyUpdates.notifiedNewStory = true;
-            storyUpdates.notifiedAt = existingStory.notifiedAt || currentTime;
-            shouldNotify = true;
-          }
-        } else {
-          // Just update the monitored status and expiration as before
-          storyUpdates.isFromMonitoredUser =
-            isFromVerifiedUser || existingStory.isFromMonitoredUser;
-          storyUpdates.expiresAt = isFromVerifiedUser
-            ? null
-            : existingStory.expiresAt;
-        }
-
-        // Update the story in the database
-        await db
-          .update(storiesTable)
-          .set(storyUpdates)
-          .where(eq(storiesTable.id, story.id));
-
-        // Send notification if needed
-        if (shouldNotify) {
-          await sendNotification(story, "new_story_by_verified_user");
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Error processing new stories:", error);
-    Sentry.captureException(error);
-  }
-}
-
-/**
- * Process top/front page stories from HackerNews
- */
-async function processTopStories() {
-  try {
-    console.log("Fetching top HackerNews stories...");
-
-    // Get top stories
-    const topStoryIds = await getTopStories();
-    if (!topStoryIds.length) {
-      console.log("No top stories found");
-      return;
-    }
-
-    // Only take the top 30 (front page)
-    const frontPageIds = topStoryIds.slice(0, TOP_STORIES_LIMIT);
-
-    console.log(`Processing ${frontPageIds.length} stories from front page`);
-
-    // Get current timestamp in seconds
-    const currentTime = Math.floor(Date.now() / 1000);
-
-    // Batch fetch story details
-    const topStories = await getItems<Story>(frontPageIds);
-
-    // Process each story
-    for (let i = 0; i < topStories.length; i++) {
-      const story = topStories[i];
-      const position = i + 1; // Position is 1-based
-      const isNumberOne = position === 1; // Flag if this is the #1 ranked story
-
-      if (!story) continue;
-
-      // Check if the story is from a verified user
-      const isFromVerifiedUser = await isVerifiedUser(story.by);
-
-      // Check if story already exists in our database
-      const existingStory = await db
-        .select()
-        .from(storiesTable)
-        .where(eq(storiesTable.id, story.id))
-        .then((a) => a[0]);
-
-      if (!existingStory) {
-        // New story directly on front page - this is unusual but possible
-
         // Create notification tracking fields
-        const notifiedFrontPage = isFromVerifiedUser || isNumberOne;
-        const notifiedNumberOne = isNumberOne;
+        const notifiedFrontPage = isOnLeaderboard && (isFromVerifiedUser || isNumberOne);
+        const notifiedNumberOne = isNumberOne && isFromVerifiedUser;
         const notifiedNewStory = isFromVerifiedUser;
-
-        // Add to database
-        const expiresAt = calculateExpirationTime(isFromVerifiedUser);
 
         await db.insert(storiesTable).values({
           id: story.id,
@@ -238,107 +122,110 @@ async function processTopStories() {
           firstSeenAt: currentTime,
           lastUpdatedAt: currentTime,
           // Track when first notification was sent (if any)
-          notifiedAt:
-            notifiedFrontPage || notifiedNumberOne ? currentTime : null,
+          notifiedAt: (notifiedFrontPage || notifiedNumberOne || notifiedNewStory) ? currentTime : null,
           // Track specific notification types
+          notifiedNewStory: notifiedNewStory,
           notifiedFrontPage: notifiedFrontPage,
           notifiedNumberOne: notifiedNumberOne,
-          notifiedNewStory: notifiedNewStory,
-          isOnLeaderboard: true,
-          enteredLeaderboardAt: currentTime,
+          isOnLeaderboard: isOnLeaderboard,
+          enteredLeaderboardAt: isOnLeaderboard ? currentTime : null,
           position: position,
-          peakPosition: position,
-          peakPositionAt: currentTime,
+          peakPosition: isOnLeaderboard ? position : null,
+          peakPositionAt: isOnLeaderboard ? currentTime : null,
           peakScore: story.score,
           peakScoreAt: currentTime,
           isFromMonitoredUser: isFromVerifiedUser,
           expiresAt: expiresAt,
         });
 
-        // Also record a leaderboard snapshot for the story's first appearance
-        await recordLeaderboardSnapshot({
-          storyId: story.id,
-          position,
-          score: story.score,
-          timestamp: currentTime,
-          isFromVerifiedUser,
-          expiresAt,
-        });
+        // Record leaderboard snapshot if on leaderboard
+        if (isOnLeaderboard) {
+          await recordLeaderboardSnapshot({
+            storyId: story.id,
+            position,
+            score: story.score,
+            timestamp: currentTime,
+            isFromVerifiedUser,
+            expiresAt,
+          });
+        }
 
-        // Send a notification only if it's from a verified user or if it's #1
+        // Send notifications
         if (isFromVerifiedUser) {
-          await sendNotification(
-            story,
-            isNumberOne ? "number_one_story" : "front_page_story",
-          );
+          if (isNumberOne) {
+            await sendNotification(story, "number_one_story");
+          } else if (isOnLeaderboard) {
+            await sendNotification(story, "front_page_story");
+          } else {
+            await sendNotification(story, "new_story_by_verified_user");
+          }
         }
       } else {
-        // Update existing story
+        // Existing story - update stats
         const storyUpdates: Partial<typeof storiesTable.$inferSelect> = {
           score: story.score,
           descendants: story.descendants,
           position: position,
           lastUpdatedAt: currentTime,
-          // Update this in case we didn't know before
-          isFromMonitoredUser:
-            isFromVerifiedUser || existingStory.isFromMonitoredUser,
+          isFromMonitoredUser: isFromVerifiedUser || existingStory.isFromMonitoredUser,
         };
 
-        // Record this snapshot in the leaderboard history - used for graphs
-        await recordLeaderboardSnapshot({
-          storyId: story.id,
-          position,
-          score: story.score,
-          timestamp: currentTime,
-          isFromVerifiedUser,
-          expiresAt: calculateExpirationTime(isFromVerifiedUser),
-        });
+        // Record leaderboard snapshot if on leaderboard
+        if (isOnLeaderboard) {
+          await recordLeaderboardSnapshot({
+            storyId: story.id,
+            position,
+            score: story.score,
+            timestamp: currentTime,
+            isFromVerifiedUser,
+            expiresAt: calculateExpirationTime(isFromVerifiedUser),
+          });
+        }
 
         let shouldSendNotification = false;
-        let notificationType: "front_page_story" | "number_one_story" =
-          "front_page_story";
+        let notificationType: "new_story_by_verified_user" | "front_page_story" | "number_one_story" = "new_story_by_verified_user";
 
-        // Check if it just entered the leaderboard
-        if (!existingStory.isOnLeaderboard) {
-          storyUpdates.isOnLeaderboard = true;
-          storyUpdates.enteredLeaderboardAt = currentTime;
-          storyUpdates.peakPosition = position;
-          storyUpdates.peakPositionAt = currentTime;
-          storyUpdates.peakScore = story.score;
-          storyUpdates.peakScoreAt = currentTime;
-
-          // Only notify if it's from a verified user and we haven't sent a front page notification
-          if (isFromVerifiedUser && !existingStory.notifiedFrontPage) {
-            storyUpdates.notifiedAt = existingStory.notifiedAt || currentTime;
-            storyUpdates.notifiedFrontPage = true;
-            shouldSendNotification = true;
-          }
-        } else {
-          // Already on leaderboard - update peak stats if better
-          if (
-            position < (existingStory.peakPosition || Number.POSITIVE_INFINITY)
-          ) {
+        // Handle leaderboard status changes
+        if (isOnLeaderboard) {
+          if (!existingStory.isOnLeaderboard) {
+            // Just entered leaderboard
+            storyUpdates.isOnLeaderboard = true;
+            storyUpdates.enteredLeaderboardAt = currentTime;
             storyUpdates.peakPosition = position;
             storyUpdates.peakPositionAt = currentTime;
-
-            // Special case: if it just became #1 and we haven't sent a #1 notification
-            // Only notify for verified users
-            if (
-              isNumberOne &&
-              !existingStory.notifiedNumberOne &&
-              isFromVerifiedUser
-            ) {
-              storyUpdates.notifiedAt = existingStory.notifiedAt || currentTime;
-              storyUpdates.notifiedNumberOne = true;
-              shouldSendNotification = true;
-              notificationType = "number_one_story";
-            }
-          }
-
-          if (story.score > (existingStory.peakScore || 0)) {
             storyUpdates.peakScore = story.score;
             storyUpdates.peakScoreAt = currentTime;
+
+            // Notify if from verified user and no front page notification yet
+            if (isFromVerifiedUser && !existingStory.notifiedFrontPage) {
+              storyUpdates.notifiedFrontPage = true;
+              storyUpdates.notifiedAt = existingStory.notifiedAt || currentTime;
+              shouldSendNotification = true;
+              notificationType = "front_page_story";
+            }
+          } else {
+            // Already on leaderboard - update peak stats if better
+            if (position < (existingStory.peakPosition || Number.POSITIVE_INFINITY)) {
+              storyUpdates.peakPosition = position;
+              storyUpdates.peakPositionAt = currentTime;
+
+              // Special case: if it just became #1 and we haven't sent a #1 notification
+              if (isNumberOne && !existingStory.notifiedNumberOne && isFromVerifiedUser) {
+                storyUpdates.notifiedNumberOne = true;
+                storyUpdates.notifiedAt = existingStory.notifiedAt || currentTime;
+                shouldSendNotification = true;
+                notificationType = "number_one_story";
+              }
+            }
+
+            if (story.score > (existingStory.peakScore || 0)) {
+              storyUpdates.peakScore = story.score;
+              storyUpdates.peakScoreAt = currentTime;
+            }
           }
+        } else if (!existingStory.isOnLeaderboard) {
+          // Not on leaderboard but we should update the position anyway
+          storyUpdates.position = position;
         }
 
         // Update the story in our database
@@ -369,7 +256,7 @@ async function processTopStories() {
         ),
       );
   } catch (error) {
-    console.error("Error processing top stories:", error);
+    console.error("Error processing stories:", error);
     Sentry.captureException(error);
   }
 }
@@ -583,9 +470,8 @@ async function sendNotification(
  */
 async function checkHackerNews() {
   try {
-    // Process new and top stories
-    await processNewStories();
-    await processTopStories();
+    // Process stories - unified processing with one API call
+    await processStories();
 
     // Clean up expired stories
     await cleanupExpiredStories();
