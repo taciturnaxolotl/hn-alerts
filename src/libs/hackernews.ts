@@ -77,6 +77,8 @@ export async function getUser(userId: string): Promise<User> {
  */
 export async function getNewStories(): Promise<number[]> {
   try {
+    console.log("getNewStories: Fetching new story IDs from HackerNews API...");
+
     const response = await fetch(
       "https://hacker-news.firebaseio.com/v0/newstories.json",
     );
@@ -85,7 +87,12 @@ export async function getNewStories(): Promise<number[]> {
       throw new Error(`Failed to fetch new stories: ${response.statusText}`);
     }
 
-    return (await response.json()) as number[];
+    const stories = (await response.json()) as number[];
+    console.log(
+      `getNewStories: Successfully fetched ${stories.length} story IDs`,
+    );
+
+    return stories;
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -128,6 +135,9 @@ export async function getItem<T extends HNItem>(
   itemId: number,
 ): Promise<T | null> {
   try {
+    // Uncomment for detailed debugging of individual item fetches
+    // console.log(`getItem: Fetching item ${itemId}...`);
+
     const response = await fetch(
       `https://hacker-news.firebaseio.com/v0/item/${itemId}.json`,
     );
@@ -137,6 +147,14 @@ export async function getItem<T extends HNItem>(
     }
 
     const item = await response.json();
+
+    // Uncomment for detailed debugging of individual item results
+    // if (item) {
+    //   console.log(`getItem: Successfully fetched item ${itemId} (type: ${item.type})`);
+    // } else {
+    //   console.log(`getItem: Item ${itemId} not found (null response)`);
+    // }
+
     return item ? (item as T) : null;
   } catch (error) {
     if (error instanceof Error) {
@@ -148,32 +166,70 @@ export async function getItem<T extends HNItem>(
 
 /**
  * Fetches multiple items (stories, comments, etc.) from Hacker News by their IDs.
+ * Uses parallel requests for better performance.
  *
  * @param itemIds - Array of item IDs to fetch
  * @param limit - Optional limit on number of items to fetch
+ * @param batchSize - Optional batch size for parallel requests (default: 20)
  * @returns Promise resolving to an array of successfully fetched items
  */
 export async function getItems<T extends HNItem>(
   itemIds: number[],
   limit?: number,
+  batchSize = 20,
 ): Promise<T[]> {
   const ids = limit ? itemIds.slice(0, limit) : itemIds;
 
+  console.log(
+    `getItems: Fetching ${ids.length} items from HackerNews API in parallel...`,
+  );
+  let successCount = 0;
+  let errorCount = 0;
+
   const items: T[] = [];
 
-  // Use a for-of loop to simplify the logic and avoid type issues
-  for (const id of ids) {
-    try {
-      const item = await getItem<T>(id);
-      if (item !== null) {
-        items.push(item);
-      }
-    } catch (error) {
-      console.error(`Failed to fetch item ${id}:`, error);
-      // Continue with next item
-    }
+  // Process in batches to avoid overwhelming the API
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batchIds = ids.slice(i, i + batchSize);
+    console.log(
+      `getItems: Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(ids.length / batchSize)} (${batchIds.length} items)`,
+    );
+
+    // Create an array of promises for this batch
+    const batchPromises = batchIds.map((id) =>
+      getItem<T>(id)
+        .then((item) => {
+          if (item !== null) {
+            successCount++;
+            return item;
+          }
+          return null;
+        })
+        .catch((error) => {
+          console.error(`Failed to fetch item ${id}:`, error);
+          errorCount++;
+          return null;
+        }),
+    );
+
+    // Wait for all promises in this batch to resolve
+    const batchResults = await Promise.all(batchPromises);
+
+    // Add non-null results to our items array
+    items.push(
+      ...batchResults.filter(
+        (item): item is NonNullable<typeof item> => item !== null,
+      ),
+    );
+
+    console.log(
+      `getItems: Batch complete - ${successCount} successful, ${errorCount} failed so far`,
+    );
   }
 
+  console.log(
+    `getItems: Completed fetching items - ${successCount} successful, ${errorCount} failed, ${items.length} total items returned`,
+  );
   return items;
 }
 
