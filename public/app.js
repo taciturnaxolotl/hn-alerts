@@ -5,7 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const uniqueStoriesEl = document.getElementById("unique-stories");
   const highestRankEl = document.getElementById("highest-rank");
   const refreshButton = document.getElementById("refresh-data");
-  const graphContainer = document.getElementById("graph-container");
   const noGraph = document.getElementById("no-graph");
   const rankChart = document.getElementById("rank-chart");
 
@@ -40,13 +39,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function removeDuplicateStories(stories) {
     const urlMap = new Map();
 
-    stories.forEach(story => {
+    for (const story of stories) {
       const existingStory = urlMap.get(story.url);
 
       if (!existingStory || story.rank < existingStory.rank) {
         urlMap.set(story.url, story);
       }
-    });
+    }
 
     return Array.from(urlMap.values());
   }
@@ -84,10 +83,15 @@ document.addEventListener("DOMContentLoaded", () => {
     storyList.innerHTML = html;
 
     // Add event listeners to story items
-    document.querySelectorAll('.story-item').forEach(item => {
-      item.addEventListener('click', (e) => {
+    const storyItems = document.querySelectorAll(".story-item");
+
+    for (const item of storyItems) {
+      item.addEventListener("click", (e) => {
         // Prevent triggering when clicking links
-        if (e.target.classList.contains('external-link') || e.target.closest('.external-link')) {
+        if (
+          e.target.classList.contains("external-link") ||
+          e.target.closest(".external-link")
+        ) {
           return;
         }
 
@@ -95,10 +99,13 @@ document.addEventListener("DOMContentLoaded", () => {
         loadStoryGraph(storyId);
 
         // Mark as active
-        document.querySelectorAll('.story-item').forEach(i => i.classList.remove('active'));
-        item.classList.add('active');
+        const allItems = document.querySelectorAll(".story-item");
+        for (const i of allItems) {
+          i.classList.remove("active");
+        }
+        item.classList.add("active");
       });
-    });
+    }
   }
 
   // Load story snapshots and display graph
@@ -106,26 +113,27 @@ document.addEventListener("DOMContentLoaded", () => {
     if (activeStoryId === storyId) return;
     activeStoryId = storyId;
 
-    noGraph.style.display = 'flex';
-    rankChart.style.display = 'none';
+    noGraph.style.display = "flex";
+    rankChart.style.display = "none";
     noGraph.innerHTML = '<div class="loading">Loading graph data...</div>';
 
     fetch(`/api/story/${storyId}/snapshots`)
-      .then(response => {
+      .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch snapshot data");
         }
         return response.json();
       })
-      .then(snapshots => {
+      .then((snapshots) => {
         if (!snapshots || snapshots.length === 0) {
-          noGraph.innerHTML = '<p>No historical data available for this story.</p>';
+          noGraph.innerHTML =
+            "<p>No historical data available for this story.</p>";
           return;
         }
 
         displayGraph(snapshots);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error fetching snapshots:", error);
         noGraph.innerHTML = `<p>Error loading graph: ${error.message}</p>`;
       });
@@ -133,23 +141,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Display the rank history graph
   function displayGraph(snapshots) {
-    noGraph.style.display = 'none';
-    rankChart.style.display = 'block';
+    noGraph.style.display = "none";
+    rankChart.style.display = "block";
 
     // Prepare data for Chart.js
-    const timestamps = snapshots.map(snap => snap.date);
-    const positionData = snapshots.map(snap => snap.position);
-    const scoreData = snapshots.map(snap => snap.score);
+    const timestamps = snapshots.map((snap) => snap.date);
+    const positionData = snapshots.map((snap) => snap.position);
+    const scoreData = snapshots.map((snap) => snap.score);
 
     // Create data points that Chart.js can use without time adapter
     const positionDataPoints = timestamps.map((t, i) => ({
       x: new Date(t).getTime(),
-      y: positionData[i]
+      y: positionData[i],
     }));
 
     const scoreDataPoints = timestamps.map((t, i) => ({
       x: new Date(t).getTime(),
-      y: scoreData[i]
+      y: scoreData[i],
     }));
 
     // Destroy existing chart if it exists
@@ -159,76 +167,73 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Create new chart
     chart = new Chart(rankChart, {
-      type: 'line',
+      type: "line",
       data: {
         datasets: [
           {
-            label: 'Rank (Position)',
+            label: "Rank (Position)",
             data: positionDataPoints,
-            borderColor: '#ff6600',
-            backgroundColor: 'rgba(255, 102, 0, 0.1)',
+            borderColor: "#ff6600",
+            backgroundColor: "rgba(255, 102, 0, 0.1)",
             tension: 0.1,
-            yAxisID: 'y'
+            yAxisID: "y",
           },
           {
-            label: 'Score (Points)',
+            label: "Score (Points)",
             data: scoreDataPoints,
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderColor: "#3b82f6",
+            backgroundColor: "rgba(59, 130, 246, 0.1)",
             tension: 0.1,
-            yAxisID: 'y1'
-          }
-        ]
+            yAxisID: "y1",
+          },
+        ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
           x: {
-            type: 'linear',
-            position: 'bottom',
+            type: "linear",
+            position: "bottom",
             title: {
               display: true,
-              text: 'Time'
+              text: "Time",
             },
             ticks: {
-              callback: function(value) {
-                return new Date(value).toLocaleString();
-              }
-            }
+              callback: (value) => new Date(value).toLocaleString(),
+            },
           },
           y: {
-            position: 'left',
+            position: "left",
             reverse: true, // Lower rank numbers (better) should be at the top
             title: {
               display: true,
-              text: 'Rank'
+              text: "Rank",
             },
             grid: {
-              display: true
-            }
+              display: true,
+            },
           },
           y1: {
-            position: 'right',
+            position: "right",
             title: {
               display: true,
-              text: 'Points'
+              text: "Points",
             },
             grid: {
-              display: false
-            }
-          }
+              display: false,
+            },
+          },
         },
         plugins: {
           tooltip: {
             callbacks: {
-              title: function(context) {
-                return new Date(context[0].parsed.x).toLocaleString();
-              }
-            }
-          }
-        }
-      }
+              title: (context) =>
+                new Date(context[0].parsed.x).toLocaleString(),
+            },
+          },
+        },
+      },
     });
   }
 

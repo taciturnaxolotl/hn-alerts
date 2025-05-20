@@ -3,7 +3,7 @@ import { SlackApp } from "slack-edge";
 import setup from "./features";
 import { db } from "./libs/db";
 import { version, name } from "../package.json";
-import root from "../public/index.html"
+import root from "../public/index.html";
 
 const environment = process.env.NODE_ENV;
 const commit = (() => {
@@ -103,15 +103,12 @@ const server = Bun.serve({
     },
     "/api/story/:id/snapshots": async (req) => {
       try {
-        const storyId = parseInt(req.params.id as string);
-        if (isNaN(storyId)) {
-          return new Response(
-            JSON.stringify({ error: "Invalid story ID" }),
-            {
-              status: 400,
-              headers: { "Content-Type": "application/json" },
-            }
-          );
+        const storyId = Number.parseInt(req.params.id as string);
+        if (Number.isNaN(storyId)) {
+          return new Response(JSON.stringify({ error: "Invalid story ID" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
         // Get snapshots for the story
@@ -121,7 +118,7 @@ const server = Bun.serve({
         });
 
         // Transform snapshot data for frontend
-        const graphData = snapshots.map(snapshot => ({
+        const graphData = snapshots.map((snapshot) => ({
           timestamp: snapshot.timestamp,
           position: snapshot.position,
           score: snapshot.score,
@@ -132,13 +129,13 @@ const server = Bun.serve({
           headers: { "Content-Type": "application/json" },
         });
       } catch (error) {
-        console.error(`Failed to fetch snapshots for story:`, error);
+        console.error("Failed to fetch snapshots for story:", error);
         return new Response(
           JSON.stringify({ error: "Failed to fetch snapshots" }),
           {
             status: 500,
             headers: { "Content-Type": "application/json" },
-          }
+          },
         );
       }
     },
