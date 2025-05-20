@@ -1,194 +1,220 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HN Alerts Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-    <style>
-        :root {
-            --bg-color: #ffffff;
-            --bg-secondary: #f5f5f5;
-            --text-color: #212121;
-            --text-secondary: #555;
-            --hn-orange: #ff6600;
-            --hn-orange-hover: #e05d00;
-            --border-color: #ddd;
-        }
-        
-        @media (prefers-color-scheme: dark) {
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link
+            rel="icon"
+            type="image/png"
+            href="/public/favicon-96x96.png"
+            sizes="96x96"
+        />
+        <link rel="icon" type="image/svg+xml" href="/public/favicon.svg" />
+        <link rel="shortcut icon" href="/public/favicon.ico" />
+        <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="/public/apple-touch-icon.png"
+        />
+        <meta name="apple-mobile-web-app-title" content="HN Alerts" />
+        <link rel="manifest" href="/public/site.webmanifest" />
+        <title>HN Alerts Dashboard</title>
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
+        />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+        <style>
             :root {
-                --bg-color: #1a1a1a;
-                --bg-secondary: #2a2a2a;
-                --text-color: #f0f0f0;
-                --text-secondary: #aaa;
-                --border-color: #444;
+                --bg-color: #ffffff;
+                --bg-secondary: #f5f5f5;
+                --text-color: #212121;
+                --text-secondary: #555;
+                --hn-orange: #ff6600;
+                --hn-orange-hover: #e05d00;
+                --border-color: #ddd;
             }
-        }
-        
-        body {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-        }
-        
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 2rem;
-        }
-        
-        .header img {
-            height: 60px;
-        }
-        
-        .main-container {
-            display: flex;
-            gap: 2rem;
-        }
-        
-        .story-list {
-            flex: 1;
-            max-width: 600px;
-            margin-top: 1rem;
-        }
-        
-        .graph-container {
-            flex: 1;
-            background-color: var(--bg-secondary);
-            border-radius: 5px;
-            padding: 1rem;
-            height: 500px;
-            position: sticky;
-            top: 1rem;
-        }
-        
-        .story-item {
-            background-color: var(--bg-secondary);
-            border-radius: 5px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-left: 4px solid var(--hn-orange);
-            cursor: pointer;
-            transition: transform 0.1s ease;
-        }
-        
-        .story-item:hover {
-            transform: translateX(4px);
-        }
-        
-        .story-item.active {
-            border-left-width: 8px;
-            font-weight: bold;
-        }
-        
-        .story-item h3 {
-            margin-top: 0;
-        }
-        
-        .story-meta {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            display: flex;
-            justify-content: space-between;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-secondary);
-        }
-        
-        .stats {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-        
-        .stat-card {
-            flex: 1;
-            min-width: 200px;
-            padding: 1rem;
-            background-color: var(--bg-secondary);
-            border-radius: 5px;
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 2rem;
-            font-weight: bold;
-            color: var(--hn-orange);
-        }
-        
-        .refresh-button {
-            background-color: var(--hn-orange);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        
-        .refresh-button:hover {
-            background-color: var(--hn-orange-hover);
-        }
-        
-        .no-graph {
-            display: flex;
-            height: 100%;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-secondary);
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div>
-            <h1>Hacker News Alerts Dashboard</h1>
-            <p>Monitor your HN front page appearances</p>
-        </div>
-        <img src="https://cachet.dunkirk.sh/emojis/ycombinator/r" alt="HN Logo">
-    </div>
 
-    <div class="stats">
-        <div class="stat-card">
-            <div class="stat-number" id="total-alerts">-</div>
-            <div>Total Alerts</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="unique-stories">-</div>
-            <div>Unique Stories</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="highest-rank">-</div>
-            <div>Best Rank</div>
-        </div>
-    </div>
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg-color: #1a1a1a;
+                    --bg-secondary: #2a2a2a;
+                    --text-color: #f0f0f0;
+                    --text-secondary: #aaa;
+                    --border-color: #444;
+                }
+            }
 
-    <div>
-        <button class="refresh-button" id="refresh-data">Refresh Data</button>
-    </div>
+            body {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                background-color: var(--bg-color);
+                color: var(--text-color);
+            }
 
-    <div class="main-container">
-        <div class="story-list" id="story-list">
-            <div class="loading">Loading stories...</div>
-        </div>
-        
-        <div class="graph-container" id="graph-container">
-            <div class="no-graph" id="no-graph">
-                <p>Click on a story to see its rank history on the Hacker News front page.</p>
+            .header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 2rem;
+            }
+
+            .header img {
+                height: 60px;
+            }
+
+            .main-container {
+                display: flex;
+                gap: 2rem;
+            }
+
+            .story-list {
+                flex: 1;
+                max-width: 600px;
+                margin-top: 1rem;
+            }
+
+            .graph-container {
+                flex: 1;
+                background-color: var(--bg-secondary);
+                border-radius: 5px;
+                padding: 1rem;
+                height: 500px;
+                position: sticky;
+                top: 1rem;
+            }
+
+            .story-item {
+                background-color: var(--bg-secondary);
+                border-radius: 5px;
+                padding: 1rem;
+                margin-bottom: 1rem;
+                border-left: 4px solid var(--hn-orange);
+                cursor: pointer;
+                transition: transform 0.1s ease;
+            }
+
+            .story-item:hover {
+                transform: translateX(4px);
+            }
+
+            .story-item.active {
+                border-left-width: 8px;
+                font-weight: bold;
+            }
+
+            .story-item h3 {
+                margin-top: 0;
+            }
+
+            .story-meta {
+                font-size: 0.9rem;
+                color: var(--text-secondary);
+                display: flex;
+                justify-content: space-between;
+            }
+
+            .loading {
+                text-align: center;
+                padding: 2rem;
+                color: var(--text-secondary);
+            }
+
+            .stats {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+                margin-bottom: 2rem;
+            }
+
+            .stat-card {
+                flex: 1;
+                min-width: 200px;
+                padding: 1rem;
+                background-color: var(--bg-secondary);
+                border-radius: 5px;
+                text-align: center;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+                font-weight: bold;
+                color: var(--hn-orange);
+            }
+
+            .refresh-button {
+                background-color: var(--hn-orange);
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+
+            .refresh-button:hover {
+                background-color: var(--hn-orange-hover);
+            }
+
+            .no-graph {
+                display: flex;
+                height: 100%;
+                align-items: center;
+                justify-content: center;
+                color: var(--text-secondary);
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div>
+                <h1>Hacker News Alerts Dashboard</h1>
+                <p>Monitor your HN front page appearances</p>
             </div>
-            <canvas id="rank-chart" style="display: none;"></canvas>
+            <img
+                src="https://cachet.dunkirk.sh/emojis/ycombinator/r"
+                alt="HN Logo"
+            />
         </div>
-    </div>
 
-    <script src="app.js"></script>
-</body>
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-alerts">-</div>
+                <div>Total Alerts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="unique-stories">-</div>
+                <div>Unique Stories</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="highest-rank">-</div>
+                <div>Best Rank</div>
+            </div>
+        </div>
+
+        <div>
+            <button class="refresh-button" id="refresh-data">
+                Refresh Data
+            </button>
+        </div>
+
+        <div class="main-container">
+            <div class="story-list" id="story-list">
+                <div class="loading">Loading stories...</div>
+            </div>
+
+            <div class="graph-container" id="graph-container">
+                <div class="no-graph" id="no-graph">
+                    <p>
+                        Click on a story to see its rank history on the Hacker
+                        News front page.
+                    </p>
+                </div>
+                <canvas id="rank-chart" style="display: none"></canvas>
+            </div>
+        </div>
+
+        <script src="app.js"></script>
+    </body>
 </html>
