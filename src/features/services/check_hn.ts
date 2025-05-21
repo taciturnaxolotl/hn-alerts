@@ -804,16 +804,16 @@ async function checkHackerNews() {
     await processStories();
     console.log("Story processing completed");
 
-    // Invalidate all caches after data update
+    // Invalidate all caches and reload them after data update
     invalidateAllCaches();
-    console.log("All query caches invalidated");
+    console.log("All query caches invalidated and refreshed");
 
     console.log("Starting cleanup of expired stories...");
     // Clean up expired stories
     await cleanupExpiredStories();
     console.log("Cleanup completed");
 
-    // Invalidate caches again after cleanup
+    // Invalidate caches again after cleanup and reload them
     invalidateAllCaches();
   } catch (error) {
     console.error("Error in checkHackerNews:", error);
@@ -843,8 +843,11 @@ export function setupHackerNewsMonitoring() {
     });
   }
 
-  // Run immediately on startup
-  checkHackerNews();
+  // Run a few seconds after startup to give server time to initialize
+  setTimeout(() => {
+    console.log("Running initial data check...");
+    checkHackerNews();
+  }, 3000);
 
   // Initialize query cache
   console.log("Query cache initialized");
