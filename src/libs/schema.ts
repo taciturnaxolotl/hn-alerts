@@ -80,6 +80,19 @@ export const stories = sqliteTable(
         table.isOnLeaderboard,
         table.position,
       ),
+      // Add covering index for the leaderboard API query
+      leaderboardCoveringIdx: index("idx_stories_leaderboard_covering").on(
+        table.isOnLeaderboard,
+        table.position,
+        table.title,
+        table.url,
+        table.score,
+        table.peakScore,
+        table.peakPosition,
+        table.descendants,
+        table.by,
+        table.isFromMonitoredUser,
+      ),
       // Add index on by field for user-specific queries
       byIdx: index("idx_stories_by").on(table.by),
       // Add index on expiration for cleanup queries

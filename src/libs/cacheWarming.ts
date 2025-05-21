@@ -17,25 +17,82 @@ export async function preloadCaches(): Promise<void> {
     // 1. Leaderboard stories (most frequently accessed)
     console.log("Preloading leaderboard stories cache...");
     await queryCache.get('leaderboard_stories', async () => {
+      // Only select the specific columns we need for better performance
       const storyAlerts = await db.query.stories.findMany({
+        columns: {
+          id: true,
+          title: true,
+          url: true,
+          position: true,
+          peakPosition: true,
+          score: true,
+          peakScore: true, 
+          descendants: true,
+          enteredLeaderboardAt: true,
+          firstSeenAt: true,
+          by: true,
+          isFromMonitoredUser: true,
+        },
         where: (stories, { eq }) => eq(stories.isOnLeaderboard, true),
         orderBy: (stories, { asc }) => [asc(stories.position)],
-        limit: 100,
+        limit: 30, // Reduced from 100 to 30 for better performance
       });
       
+      // Pre-calculate the time multiplier to optimize date transformations
+      const timeMultiplier = 1000;
+      
       // Transform for frontend
+      return storyAlerts.map((story) => {
+        // Calculate timestamp only once per story
+        const timestamp = story.enteredLeaderboardAt
+          ? new Date(story.enteredLeaderboardAt * timeMultiplier).toISOString()
+          : new Date(story.firstSeenAt * timeMultiplier).toISOString();
+          
+        return {
+          id: story.id,
+          title: story.title,
+          url: story.url || `https://news.ycombinator.com/item?id=${story.id}`,
+          rank: story.position,
+          peakRank: story.peakPosition,
+          points: story.score,
+          peakPoints: story.peakScore,
+          comments: story.descendants,
+          timestamp,
+          by: story.by,
+          isFromMonitoredUser: story.isFromMonitoredUser,
+        };
+      });
+    });
+    
+    // 1.1 Leaderboard stories lite version for high load scenarios
+    console.log("Preloading leaderboard stories lite cache...");
+    await queryCache.get('leaderboard_stories_lite', async () => {
+      // Even more optimized for high load - fewer fields, fewer records
+      const storyAlerts = await db.query.stories.findMany({
+        columns: {
+          id: true,
+          title: true,
+          url: true,
+          position: true,
+          score: true,
+          descendants: true,
+          by: true,
+          isFromMonitoredUser: true,
+        },
+        where: (stories, { eq }) => eq(stories.isOnLeaderboard, true),
+        orderBy: (stories, { asc }) => [asc(stories.position)],
+        limit: 20, // Even fewer for extreme load scenarios
+      });
+      
+      const timeMultiplier = 1000;
+      
       return storyAlerts.map((story) => ({
         id: story.id,
         title: story.title,
         url: story.url || `https://news.ycombinator.com/item?id=${story.id}`,
         rank: story.position,
-        peakRank: story.peakPosition,
         points: story.score,
-        peakPoints: story.peakScore,
         comments: story.descendants,
-        timestamp: story.enteredLeaderboardAt
-          ? new Date(story.enteredLeaderboardAt * 1000).toISOString()
-          : new Date(story.firstSeenAt * 1000).toISOString(),
         by: story.by,
         isFromMonitoredUser: story.isFromMonitoredUser,
       }));
@@ -84,15 +141,16 @@ export async function preloadCaches(): Promise<void> {
       };
     });
 
-    // 4. Optional: Warm up top 5 story snapshots (preload most accessed story graphs)
+    // 4. Optional: Warm up top 3 story snapshots (preload most accessed story graphs)
     // This is done with lower priority as it's less critical
-    console.log("Preloading top story snapshots (limited to 5)...");
+    console.log("Preloading top story snapshots (limited to 3)...");
     
-    // Get IDs of top 5 stories to warm their snapshots
+    // Get IDs of top 3 stories to warm their snapshots
     const topStories = await db.query.stories.findMany({
+      columns: { id: true }, // Only retrieve the ID field to minimize memory use
       where: (stories, { eq }) => eq(stories.isOnLeaderboard, true),
       orderBy: (stories, { asc }) => [asc(stories.position)],
-      limit: 5, // Reduced from 20 to 5 to minimize initial load
+      limit: 3, // Further reduced from 5 to 3 to minimize initial load
     });
 
     // Preload snapshots for these stories sequentially
@@ -130,8 +188,10 @@ export function invalidateAndRefreshCaches(): void {
   queryCache.invalidateAll();
   
   // Immediately refill the cache
-  preloadCaches().catch(err => {
-    console.error("Error during cache preloading after invalidation:", err);
-    Sentry.captureException(err);
-  });
+  setTimeout(() => {
+    preloadCaches().catch(err => {
+      console.error("Error during cache preloading after invalidation:", err);
+      Sentry.captureException(err);
+    });
+  }, 100); // Small delay to let any pending requests complete
 }

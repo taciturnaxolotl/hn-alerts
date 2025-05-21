@@ -4,9 +4,9 @@ import setup from "./features";
 import { db } from "./libs/db";
 import { version, name } from "../package.json";
 import { preloadCaches, invalidateAndRefreshCaches } from "./libs/cacheWarming";
-import { queryCache, createCacheHeaders, compressResponse, createCachedEndpoint } from "./libs/cache";
+import { QueryCache, queryCache, createCacheHeaders, compressResponse, createCachedEndpoint } from "./libs/cache";
 import root from "../public/index.html";
-import { count } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 import { stories } from "./libs/schema";
 
 const environment = process.env.NODE_ENV;
@@ -71,29 +71,52 @@ const server = Bun.serve({
   routes: {
     "/": root,
     "/api/stories": createCachedEndpoint("leaderboard_stories", async () => {
+      // Only select the specific columns we need for better performance
       const storyAlerts = await db.query.stories.findMany({
+        columns: {
+          id: true,
+          title: true,
+          url: true,
+          position: true,
+          peakPosition: true,
+          score: true,
+          peakScore: true, 
+          descendants: true,
+          enteredLeaderboardAt: true,
+          firstSeenAt: true,
+          by: true,
+          isFromMonitoredUser: true,
+        },
         where: (stories, { eq }) => eq(stories.isOnLeaderboard, true),
         orderBy: (stories, { asc }) => [asc(stories.position)],
-        limit: 100,
+        limit: 30, // Reduced from 100 to 30 for better performance
       });
 
+      // Pre-calculate the time multiplier to optimize date transformations
+      const timeMultiplier = 1000;
+      
       // Transform story data to match the format expected by the frontend
-      return storyAlerts.map((story) => ({
-        id: story.id,
-        title: story.title,
-        url:
-          story.url || `https://news.ycombinator.com/item?id=${story.id}`,
-        rank: story.position,
-        peakRank: story.peakPosition,
-        points: story.score,
-        peakPoints: story.peakScore,
-        comments: story.descendants,
-        timestamp: story.enteredLeaderboardAt
-          ? new Date(story.enteredLeaderboardAt * 1000).toISOString()
-          : new Date(story.firstSeenAt * 1000).toISOString(),
-        by: story.by,
-        isFromMonitoredUser: story.isFromMonitoredUser,
-      }));
+      return storyAlerts.map((story) => {
+        // Calculate timestamp only once per story
+        const timestamp = story.enteredLeaderboardAt
+          ? new Date(story.enteredLeaderboardAt * timeMultiplier).toISOString()
+          : new Date(story.firstSeenAt * timeMultiplier).toISOString();
+          
+        return {
+          id: story.id,
+          title: story.title,
+          url:
+            story.url || `https://news.ycombinator.com/item?id=${story.id}`,
+          rank: story.position,
+          peakRank: story.peakPosition,
+          points: story.score,
+          peakPoints: story.peakScore,
+          comments: story.descendants,
+          timestamp,
+          by: story.by,
+          isFromMonitoredUser: story.isFromMonitoredUser,
+        };
+      });
     }, 300),
     "/api/stats/total-stories": createCachedEndpoint("total_stories_count", async () => {
       const result = await db.select({ count: count() }).from(stories);
