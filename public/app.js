@@ -1,9 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   // Elements
   const storyList = document.getElementById("story-list");
-  const totalAlertsEl = document.getElementById("total-alerts");
-  const avgPeakPointsEl = document.getElementById("avg-peak-points");
-  const verifiedCountEl = document.getElementById("verified-count");
   const refreshButton = document.getElementById("refresh-data");
   const noGraph = document.getElementById("no-graph");
   const rankChart = document.getElementById("rank-chart");
@@ -131,7 +128,8 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((response) => response.json())
       .then((data) => {
         verifiedUserStats = data;
-        updateTopRowStats(); // Update UI with the new stats
+        // Update top row stats with the new data
+        updateTopStats(data);
       })
       .catch((error) => {
         console.error("Error fetching verified user stats:", error);
@@ -599,6 +597,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Live counter function to update time-based elements
+  // Update top row stats based on verified user data
+  function updateTopStats(data) {
+    // Update performance metrics if they exist
+    const topTenCountEl = document.getElementById("top-ten-count");
+    const mostActiveTimeEl = document.getElementById("most-active-time");
+    
+    if (topTenCountEl) {
+      topTenCountEl.textContent = data.frontPageCount || "0";
+    }
+    if (mostActiveTimeEl) {
+      mostActiveTimeEl.textContent = data.avgPeakPoints || "0";
+    }
+  
+    // Update verified user analytics metrics if they exist
+    const verifiedUserCountEl = document.getElementById("verified-user-count");
+    const verifiedAvgPointsEl = document.getElementById("verified-avg-points");
+    
+    if (verifiedUserCountEl) {
+      verifiedUserCountEl.textContent = data.totalCount || "0";
+    }
+    if (verifiedAvgPointsEl) {
+      verifiedAvgPointsEl.textContent = data.avgPeakPoints || "0";
+    }
+  }
+
   function updateLiveCounters() {
     // Update current time
     now = Date.now();
