@@ -98,6 +98,20 @@ document.addEventListener("DOMContentLoaded", () => {
   let allStories = []; // Store all stories for filtering
   let showVerifiedOnly = false; // Default to showing all stories
 
+  // Cache for ETags and data to support conditional requests
+  const etagCache = {
+    stories: null,
+    totalStories: null,
+    verifiedUsers: null
+  };
+  
+  // Cache for actual response data
+  const responseCache = {
+    stories: null,
+    totalStories: null,
+    verifiedUsers: null
+  };
+
   // Fetch stories data
   function fetchStories() {
     // Update last refresh time
@@ -111,12 +125,38 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Fetch total stories count first
-    fetch(`/api/stats/total-stories?_=${Date.now()}`)
-      .then((response) => response.json())
+    const totalStoriesOptions = {
+      headers: {}
+    };
+    
+    // Add If-None-Match header if we have an ETag
+    if (etagCache.totalStories) {
+      totalStoriesOptions.headers['If-None-Match'] = etagCache.totalStories;
+    }
+    
+    fetch('/api/stats/total-stories', totalStoriesOptions)
+      .then((response) => {
+        // Store the new ETag if available
+        const etag = response.headers.get('ETag');
+        if (etag) etagCache.totalStories = etag;
+        
+        // If 304 Not Modified, use cached data
+        if (response.status === 304) {
+          console.log('Total stories not modified, using cached data');
+          return responseCache.totalStories; // Use cached data
+        }
+        
+        return response.json();
+      })
       .then((data) => {
-        if (data && typeof data.count !== "undefined") {
-          totalStoriesCount = data.count;
-          currentFrontpageCountEl.textContent = totalStoriesCount;
+        if (data) {
+          // Store in cache for future 304 responses
+          responseCache.totalStories = data;
+          
+          if (typeof data.count !== "undefined") {
+            totalStoriesCount = data.count;
+            currentFrontpageCountEl.textContent = totalStoriesCount;
+          }
         }
       })
       .catch((error) => {
@@ -124,30 +164,78 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
     // Fetch verified user stats for the top row
-    fetch(`/api/stats/verified-users?_=${Date.now()}`)
-      .then((response) => response.json())
+    const verifiedUsersOptions = {
+      headers: {}
+    };
+    
+    // Add If-None-Match header if we have an ETag
+    if (etagCache.verifiedUsers) {
+      verifiedUsersOptions.headers['If-None-Match'] = etagCache.verifiedUsers;
+    }
+    
+    fetch('/api/stats/verified-users', verifiedUsersOptions)
+      .then((response) => {
+        // Store the new ETag if available
+        const etag = response.headers.get('ETag');
+        if (etag) etagCache.verifiedUsers = etag;
+        
+        // If 304 Not Modified, use cached data
+        if (response.status === 304) {
+          console.log('Verified users stats not modified, using cached data');
+          return responseCache.verifiedUsers; // Use cached data
+        }
+        
+        return response.json();
+      })
       .then((data) => {
-        verifiedUserStats = data;
-        // Update top row stats with the new data
-        updateTopStats(data);
+        if (data) {
+          // Store in cache for future 304 responses
+          responseCache.verifiedUsers = data;
+          
+          verifiedUserStats = data;
+          updateTopStats(data); // Update UI with the new stats
+        }
       })
       .catch((error) => {
         console.error("Error fetching verified user stats:", error);
       });
 
-    fetch(`/api/stories?_=${Date.now()}`)
+    // Fetch stories
+    const storiesOptions = {
+      headers: {}
+    };
+    
+    // Add If-None-Match header if we have an ETag
+    if (etagCache.stories) {
+      storiesOptions.headers['If-None-Match'] = etagCache.stories;
+    }
+    
+    fetch('/api/stories', storiesOptions)
       .then((response) => {
+        // Store the new ETag if available
+        const etag = response.headers.get('ETag');
+        if (etag) etagCache.stories = etag;
+        
         if (!response.ok) {
+          // Allow 304 Not Modified
+          if (response.status === 304) {
+            console.log('Stories not modified, using cached data');
+            return responseCache.stories; // Use cached data
+          }
           throw new Error("Network response was not ok");
         }
         return response.json();
       })
       .then((data) => {
-        // Store all stories for filtering
-        allStories = data;
-
-        // Apply filters and update UI
-        applyFiltersAndUpdateUI();
+        if (data) {
+          // Store in cache for future 304 responses
+          responseCache.stories = data;
+          
+          // Store all stories for filtering
+          allStories = data;
+          // Apply filters and update UI
+          applyFiltersAndUpdateUI();
+        }
       })
       .catch((error) => {
         storyList.innerHTML = `<div class="loading">Error loading data: ${error.message}</div>`;
@@ -287,6 +375,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Load story snapshots and display graph
+  // Cache for story snapshot ETags and data
+  const snapshotEtagCache = {};
+  const snapshotDataCache = {};
+
   function loadStoryGraph(storyId) {
     if (activeStoryId === storyId) return;
     activeStoryId = storyId;
@@ -295,9 +387,33 @@ document.addEventListener("DOMContentLoaded", () => {
     rankChart.style.display = "none";
     noGraph.innerHTML = '<div class="loading">Loading graph data...</div>';
 
-    fetch(`/api/story/${storyId}/snapshots?_=${Date.now()}`)
+    const options = {
+      headers: {}
+    };
+    
+    // Add If-None-Match header if we have an ETag for this story
+    if (snapshotEtagCache[storyId]) {
+      options.headers['If-None-Match'] = snapshotEtagCache[storyId];
+    }
+    
+    // Use template literal correctly since we need string interpolation
+    fetch(`/api/story/${storyId}/snapshots`, options)
       .then((response) => {
+        // Store the new ETag if available
+        const etag = response.headers.get('ETag');
+        if (etag) snapshotEtagCache[storyId] = etag;
+        
         if (!response.ok) {
+          // Allow 304 Not Modified
+          if (response.status === 304) {
+            console.log(`Story ${storyId} snapshots not modified, using cached data`);
+            // Use the cached data for this story ID
+            if (snapshotDataCache[storyId]) {
+              return snapshotDataCache[storyId];
+            }
+            // If we don't have cached data, re-fetch
+            throw new Error("Cache miss on 304, re-fetching");
+          }
           throw new Error("Failed to fetch snapshot data");
         }
         return response.json();
@@ -309,6 +425,9 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // Cache the snapshots data for future use
+        snapshotDataCache[storyId] = snapshots;
+        
         displayGraph(snapshots);
       })
       .catch((error) => {
@@ -430,11 +549,42 @@ document.addEventListener("DOMContentLoaded", () => {
     now = Date.now();
 
     // Get total stories from the API
-    fetch(`/api/stats/total-stories?_=${Date.now()}`)
-      .then((response) => response.json())
+    const options = {
+      headers: {}
+    };
+    
+    // Add If-None-Match header if we have an ETag
+    if (etagCache.totalStories) {
+      options.headers['If-None-Match'] = etagCache.totalStories;
+    }
+    
+    fetch('/api/stats/total-stories', options)
+      .then((response) => {
+        // Store the new ETag if available
+        const etag = response.headers.get('ETag');
+        if (etag) etagCache.totalStories = etag;
+        
+        // If 304 Not Modified, use cached data
+        if (response.status === 304) {
+          console.log('Total stories not modified, using cached data for metrics');
+          return responseCache.totalStories;
+        }
+        
+        return response.json();
+      })
       .then((data) => {
-        currentFrontpageCountEl.textContent =
-          data.count !== undefined ? data.count : allStories.length;
+        if (data) {
+          // Update cache
+          responseCache.totalStories = data;
+          
+          if (data.count !== undefined) {
+            currentFrontpageCountEl.textContent = data.count;
+          } else {
+            currentFrontpageCountEl.textContent = allStories.length; // Fallback to local data
+          }
+        } else {
+          currentFrontpageCountEl.textContent = allStories.length; // Fallback to local data
+        }
       })
       .catch((error) => {
         console.error("Error fetching total stories count:", error);

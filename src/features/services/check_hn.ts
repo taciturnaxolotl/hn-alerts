@@ -1,6 +1,6 @@
 import { CronJob } from "cron";
 import * as Sentry from "@sentry/bun";
-import { db, environment } from "../../index";
+import { db, environment, invalidateAllCaches } from "../../index";
 import {
   users as usersTable,
   stories as storiesTable,
@@ -147,48 +147,56 @@ async function processStories() {
     // First, filter out job stories and create a map of adjusted positions
     const positionMap = new Map<number, number>(); // Maps story ID to adjusted position
     let adjustedPosition = 0;
-    
+
     for (let i = 0; i < stories.length; i++) {
       const story = stories[i];
       if (!story) continue;
-      
+
       // Skip jobs, but include other types (mainly 'story')
-      if (story.type === 'job') {
-        console.log(`[INFO] Skipping job at original position ${i + 1}, ID: ${story.id}`);
+      if (story.type === "job") {
+        console.log(
+          `[INFO] Skipping job at original position ${i + 1}, ID: ${story.id}`,
+        );
         continue;
       }
-      
+
       // Only increment position for non-job stories
       adjustedPosition++;
       positionMap.set(story.id, adjustedPosition);
-      
+
       // Add to non-job story IDs for front page consideration
       if (adjustedPosition <= TOP_STORIES_LIMIT) {
         nonJobStoryIds.push(story.id);
       }
     }
-    
-    console.log(`Filtered out job stories. Have ${adjustedPosition} stories after filtering.`);
-    console.log(`Front page contains the top ${Math.min(TOP_STORIES_LIMIT, nonJobStoryIds.length)} non-job stories`);
-    
+
+    console.log(
+      `Filtered out job stories. Have ${adjustedPosition} stories after filtering.`,
+    );
+    console.log(
+      `Front page contains the top ${Math.min(TOP_STORIES_LIMIT, nonJobStoryIds.length)} non-job stories`,
+    );
+
     // Now use the adjusted positions when processing stories
     const frontPageIds = nonJobStoryIds.slice(0, TOP_STORIES_LIMIT);
-    
+
     // Process each story
     for (let i = 0; i < stories.length; i++) {
       const story = stories[i];
       if (!story) {
-        console.log(`[WARNING] Null story at original position ${i + 1}, skipping`);
+        console.log(
+          `[WARNING] Null story at original position ${i + 1}, skipping`,
+        );
         continue;
       }
-      
+
       // Skip job stories entirely
-      if (story.type === 'job') {
+      if (story.type === "job") {
         continue;
       }
-      
+
       // Use the adjusted position for non-job stories
-      const position = positionMap.get(story.id) || (i + 1);
+      const position = positionMap.get(story.id) || i + 1;
       const isOnFrontPage = position <= TOP_STORIES_LIMIT;
       const isNumberOne = position === 1;
 
@@ -796,10 +804,17 @@ async function checkHackerNews() {
     await processStories();
     console.log("Story processing completed");
 
+    // Invalidate all caches after data update
+    invalidateAllCaches();
+    console.log("All query caches invalidated");
+
     console.log("Starting cleanup of expired stories...");
     // Clean up expired stories
     await cleanupExpiredStories();
     console.log("Cleanup completed");
+
+    // Invalidate caches again after cleanup
+    invalidateAllCaches();
   } catch (error) {
     console.error("Error in checkHackerNews:", error);
     Sentry.captureException(error);
@@ -830,6 +845,9 @@ export function setupHackerNewsMonitoring() {
 
   // Run immediately on startup
   checkHackerNews();
+
+  // Initialize query cache
+  console.log("Query cache initialized");
 
   console.log("HackerNews monitoring service started");
 }
