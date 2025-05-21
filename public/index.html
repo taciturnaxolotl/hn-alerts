@@ -76,11 +76,11 @@
 
             .graph-container {
                 flex: 1;
+                flex-basis: inherit;
                 background-color: var(--bg-secondary);
                 border-radius: 16px;
                 padding: 1.5rem;
                 height: 500px;
-                position: sticky;
                 top: 1rem;
                 box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
                 border: 1px solid rgba(59, 130, 246, 0.1);
@@ -629,6 +629,19 @@
                 width: 16px;
                 height: 16px;
                 border-radius: 4px;
+            }
+
+            @media (max-width: 768px) {
+                .main-container {
+                    flex-direction: column;
+                    flex-direction: column-reverse;
+                }
+            }
+
+            @media (max-width: 540px) {
+                .graph-container {
+                    height: 300px;
+                }
             }
         </style>
     </head>
