@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let verifiedUserStats = {
     frontPageCount: 0,
     avgPeakPoints: 0,
-    totalCount: 0
+    totalCount: 0,
   };
 
   // Performance metrics elements
@@ -33,8 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const verifiedTopAuthorEl = document.getElementById("verified-top-author");
   const verifiedAvgPointsEl = document.getElementById("verified-avg-points");
 
-  // Initialize peformance stats
+  // Initialize performance stats
   updatePerformanceMetrics([]);
+  updateVerifiedUserAnalytics([]);
 
   // For calculating durations
   const now = Date.now();
@@ -77,6 +78,22 @@ document.addEventListener("DOMContentLoaded", () => {
     return "duration-short"; // New story (<3 hours)
   }
 
+  // Get emoji for duration visualization
+  function getDurationEmoji(ms) {
+    const hours = ms / (1000 * 60 * 60);
+
+    if (hours >= 24) {
+      return "⏳"; // Long duration
+    }
+    if (hours >= 12) {
+      return "⌛"; // Medium duration
+    }
+    if (hours >= 3) {
+      return "🕙"; // Normal duration
+    }
+    return "🆕"; // New story
+  }
+
   // Chart instance
   let chart = null;
   let activeStoryId = null;
@@ -90,25 +107,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Fetch total stories count first
     fetch("/api/stats/total-stories")
-      .then(response => response.json())
-      .then(data => {
-        if (data && typeof data.count !== 'undefined') {
+      .then((response) => response.json())
+      .then((data) => {
+        if (data && typeof data.count !== "undefined") {
           totalStoriesCount = data.count;
           currentFrontpageCountEl.textContent = totalStoriesCount;
         }
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error fetching total stories count:", error);
       });
 
     // Fetch verified user stats for the top row
     fetch("/api/stats/verified-users")
-      .then(response => response.json())
-      .then(data => {
+      .then((response) => response.json())
+      .then((data) => {
         verifiedUserStats = data;
         updateTopRowStats();
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error fetching verified user stats:", error);
       });
 
@@ -141,13 +158,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Filter for verified users if enabled
     if (showVerifiedOnly) {
-      filteredStories = filteredStories.filter(story => story.isFromMonitoredUser);
+      filteredStories = filteredStories.filter(
+        (story) => story.isFromMonitoredUser,
+      );
     }
 
     // Update UI with filtered stories
     displayStories(filteredStories);
     updateStats(filteredStories);
     updatePerformanceMetrics(allStories); // Always use all stories for this analysis
+    updateVerifiedUserAnalytics(allStories); // Update verified user analytics
     updateTopRowStats(); // Make sure top row always shows verified user stats
   }
 
@@ -180,6 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Format the duration text and get appropriate class
       const durationText = formatDuration(durationMs);
       const durationClass = getDurationClass(durationMs);
+      const durationEmoji = getDurationEmoji(durationMs);
 
       // Build the rank display with icons
       let rankDisplay = `<p>Current Rank: #${story.rank}`;
@@ -201,24 +222,19 @@ document.addEventListener("DOMContentLoaded", () => {
       rankDisplay += "</p>";
 
       // Add verified badge if story is from a monitored user
-      const verifiedBadge = story.isFromMonitoredUser
-        ? '<div class="verified-badge">Verified</div>'
-        : "";
-
       html += `
         <div class="story-item${isCurrentTop ? " top-story" : ""}${isCurrentRankOne ? " top-ranked" : ""}${isBestRankOne && !isCurrentRankOne ? " previously-top-ranked" : ""}" data-id="${story.id}" data-url="${story.url}">
-            ${verifiedBadge}
             <h3>${story.title}</h3>
             ${rankDisplay}
             <div class="story-meta">
                 <span>Points: ${story.points}</span>
                 <span>Peak Points: ${story.peakPoints || story.points}</span>
                 <span>Comments: ${story.comments}</span>
-                <span>By: ${story.by}</span>
+                <span>By: ${story.by}${story.isFromMonitoredUser ? " 💖" : ""}</span>
             </div>
             <div class="story-meta">
                 <span>Detected: ${date}</span>
-                <span class="duration ${durationClass}" title="Time since first detection">${durationText}</span>
+                <span class="duration ${durationClass}" title="Time since first detection">${durationEmoji} ${durationText}</span>
                 <span><a href="${story.url}" target="_blank" class="external-link">View Story ↗</a></span>
             </div>
         </div>
@@ -305,6 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
       y: scoreData[i],
     }));
 
+    // Update the chart data instead of destroying and recreating
     // Destroy existing chart if it exists
     if (chart) {
       chart.destroy();
@@ -385,10 +402,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // Update statistics
   // Update top row stats based on verified user data
   function updateTopRowStats() {
-    // Update the top row with verified user stats
+    // Update the top row with verified user stats with staggered animation
     totalAlertsEl.textContent = verifiedUserStats.frontPageCount || "0";
+    totalAlertsEl.style.animationDelay = "0s";
+
     avgPeakPointsEl.textContent = verifiedUserStats.avgPeakPoints || "0";
+    avgPeakPointsEl.style.animationDelay = "0.1s";
+
     verifiedCountEl.textContent = verifiedUserStats.totalCount || "0";
+    verifiedCountEl.style.animationDelay = "0.2s";
   }
 
   function updateStats(stories) {
@@ -528,6 +550,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Event listeners
+  // Add event listeners
   refreshButton.addEventListener("click", fetchStories);
 
   // Toggle verified users only
@@ -536,54 +559,40 @@ document.addEventListener("DOMContentLoaded", () => {
     applyFiltersAndUpdateUI();
   });
 
-  // Add a story badge for verified users
-  function addVerifiedBadgesToStories() {
-    const storyItems = document.querySelectorAll(".story-item");
-    for (const item of storyItems) {
-      const storyId = item.dataset.id;
-      const story = allStories.find((s) => s.id === storyId);
-      if (story?.isFromMonitoredUser) {
-        // Add verified badge if it doesn't exist
-        if (!item.querySelector(".verified-badge")) {
-          const badge = document.createElement("div");
-          badge.className = "verified-badge";
-          badge.textContent = "Verified";
-          item.insertBefore(badge, item.firstChild);
-        }
-      }
-    }
-  }
-
-  // Set initial placeholder values
-  updateTopRowStats();
-
-  // Initial data fetch
-  fetchStories();
-
   // Add CSS for duration indicators
   const style = document.createElement("style");
   style.textContent = `
     .duration {
       font-weight: bold;
-      padding: 2px 6px;
-      border-radius: 4px;
-      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+    .duration:hover {
+      transform: translateY(-2px);
     }
     .duration-short {
       background-color: rgba(76, 175, 80, 0.2);
       color: #4CAF50; /* Green for new stories (<3h) */
+      box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
     }
     .duration-normal {
       background-color: rgba(3, 169, 244, 0.2);
       color: #03A9F4; /* Blue for normal-age stories (3-12h) */
+      box-shadow: 0 2px 6px rgba(3, 169, 244, 0.2);
     }
     .duration-medium {
       background-color: rgba(255, 152, 0, 0.2);
       color: #FF9800; /* Orange for medium-age stories (12-24h) */
+      box-shadow: 0 2px 6px rgba(255, 152, 0, 0.2);
     }
     .duration-long {
       background-color: rgba(156, 39, 176, 0.2);
       color: #9C27B0; /* Purple for long-lasting stories (24h+) */
+      box-shadow: 0 2px 6px rgba(156, 39, 176, 0.2);
     }
 
     /* Tooltip styles for duration */
@@ -593,15 +602,11 @@ document.addEventListener("DOMContentLoaded", () => {
   `;
   document.head.appendChild(style);
 
-  // Initialize with an empty chart
-  chart = new Chart(rankChart, {
-    type: "line",
-    data: {
-      datasets: [],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-    },
-  });
+  // Set initial placeholder values
+  updateTopRowStats();
+
+  // Initial data fetch
+  fetchStories();
+
+  // We'll initialize the chart on demand rather than empty
 });

@@ -78,37 +78,55 @@
             .graph-container {
                 flex: 1;
                 background-color: var(--bg-secondary);
-                border-radius: 5px;
-                padding: 1rem;
+                border-radius: 16px;
+                padding: 1.5rem;
                 height: 500px;
                 position: sticky;
                 top: 1rem;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+                border: 1px solid rgba(59, 130, 246, 0.1);
+                transition: all 0.3s ease;
+            }
+
+            .graph-container:hover {
+                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+                border-color: rgba(59, 130, 246, 0.2);
             }
 
             .story-item {
                 background-color: var(--bg-secondary);
-                border-radius: 5px;
-                padding: 1rem;
-                margin-bottom: 1rem;
+                border-radius: 12px;
+                padding: 1.2rem;
+                margin-bottom: 1.2rem;
                 border-left: 4px solid var(--hn-orange);
                 cursor: pointer;
-                transition: transform 0.1s ease, box-shadow 0.2s ease;
+                transition: all 0.3s ease;
                 position: relative;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
             }
 
             .story-item:hover {
-                transform: translateX(4px);
-                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                transform: translateX(6px);
+                box-shadow: 0 6px 15px rgba(255, 102, 0, 0.15);
             }
 
             .story-item.active {
                 border-left-width: 8px;
                 font-weight: bold;
-                box-shadow: 0 2px 8px rgba(255, 102, 0, 0.2);
+                box-shadow: 0 6px 15px rgba(255, 102, 0, 0.25);
+                background: linear-gradient(
+                    to right,
+                    rgba(255, 102, 0, 0.05),
+                    var(--bg-secondary)
+                );
             }
 
             .story-item h3 {
                 margin-top: 0;
+                margin-bottom: 0.8rem;
+                font-size: 1.3rem;
+                line-height: 1.3;
+                color: var(--text-color);
             }
 
             .story-meta {
@@ -116,53 +134,166 @@
                 color: var(--text-secondary);
                 display: flex;
                 justify-content: space-between;
+                margin-top: 0.8rem;
+                padding-top: 0.8rem;
+                border-top: 1px solid rgba(255, 102, 0, 0.1);
             }
 
             .loading {
                 text-align: center;
-                padding: 2rem;
+                padding: 2.5rem;
                 color: var(--text-secondary);
+                font-style: italic;
+                background-color: var(--bg-secondary);
+                border-radius: 12px;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+                animation: pulse 1.5s infinite ease-in-out;
+            }
+
+            @keyframes pulse {
+                0% {
+                    opacity: 0.6;
+                }
+                50% {
+                    opacity: 1;
+                }
+                100% {
+                    opacity: 0.6;
+                }
             }
 
             .stats {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 1rem;
-                margin-bottom: 2rem;
+                gap: 1.5rem;
+                margin: 2rem 0;
+                padding: 1.5rem;
+                background: linear-gradient(
+                    135deg,
+                    rgba(255, 102, 0, 0.08) 0%,
+                    rgba(255, 102, 0, 0.02) 50%,
+                    rgba(255, 102, 0, 0.08) 100%
+                );
+                border-radius: 16px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 102, 0, 0.1);
+                justify-content: center;
+                align-items: center;
+                width: fit-content;
+                max-width: 100%;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                .stats {
+                    background: linear-gradient(
+                        135deg,
+                        rgba(255, 102, 0, 0.12) 0%,
+                        rgba(255, 102, 0, 0.05) 50%,
+                        rgba(255, 102, 0, 0.12) 100%
+                    );
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                }
+            }
+
+            .stat-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+                background: linear-gradient(
+                    135deg,
+                    rgba(255, 102, 0, 0.2),
+                    rgba(255, 102, 0, 0.1)
+                );
+                width: 50px;
+                height: 50px;
+                line-height: 50px;
+                border-radius: 50%;
+                display: inline-block;
+                position: relative;
+                z-index: 1;
+                box-shadow: 0 4px 10px rgba(255, 102, 0, 0.1);
+            }
+
+            .stat-label {
+                font-size: 1rem;
+                font-weight: 500;
+                color: var(--text-secondary);
+                letter-spacing: 0.02em;
+                margin-top: 0.5rem;
+                position: relative;
+                display: inline-block;
             }
 
             .stat-card {
                 flex: 1;
                 min-width: 180px;
                 max-width: 250px;
-                padding: 1rem;
+                padding: 1.5rem;
                 background-color: var(--bg-secondary);
-                border-radius: 5px;
+                border-radius: 16px;
                 text-align: center;
-                transition: transform 0.1s ease-in-out;
+                transition: all 0.3s ease;
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+                position: relative;
+                overflow: hidden;
+                z-index: 1;
+                animation: fadeInUp 0.6s ease-out forwards;
             }
-            
+
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
             .stat-card:hover {
-                transform: translateY(-3px);
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                transform: translateY(-5px);
+                box-shadow: 0 10px 25px rgba(255, 102, 0, 0.1);
             }
-            
+
+            .stat-card::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: linear-gradient(90deg, #ff6600, #e05d00);
+                z-index: -1;
+            }
+
             .top-ranked {
-                background: linear-gradient(to right, rgba(255, 102, 0, 0.1), var(--bg-secondary) 70%);
+                background: linear-gradient(
+                    to right,
+                    rgba(255, 102, 0, 0.1),
+                    var(--bg-secondary) 70%
+                );
             }
-            
+
             .top-ranked::after {
                 content: "🏆";
                 position: absolute;
                 top: 0.5rem;
-                right: 2.5rem;
+                right: 0.75rem;
                 font-size: 1.5rem;
             }
-            
+
             .previously-top-ranked {
-                background: linear-gradient(to right, rgba(255, 205, 0, 0.05), var(--bg-secondary) 70%);
+                background: linear-gradient(
+                    to right,
+                    rgba(255, 205, 0, 0.05),
+                    var(--bg-secondary) 70%
+                );
             }
-            
+
             .previously-top-ranked::after {
                 content: "⭐";
                 position: absolute;
@@ -172,13 +303,29 @@
             }
 
             .stat-number {
-                font-size: 2rem;
+                font-size: 2.5rem;
                 font-weight: bold;
-                color: var(--hn-orange);
-                margin-bottom: 0.5rem;
+                background: linear-gradient(135deg, var(--hn-orange), #e05d00);
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
+                margin: 0.5rem 0;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+                text-shadow: 0 2px 10px rgba(255, 102, 0, 0.15);
+                animation: numberCountUp 1.5s ease-out forwards;
+            }
+
+            @keyframes numberCountUp {
+                from {
+                    opacity: 0;
+                    transform: scale(0.8);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
             }
 
             .controls {
@@ -195,18 +342,32 @@
             }
 
             .refresh-button {
-                background-color: var(--hn-orange);
+                background: linear-gradient(
+                    135deg,
+                    var(--hn-orange),
+                    var(--hn-orange-hover)
+                );
                 color: white;
                 border: none;
-                padding: 0.5rem 1rem;
-                border-radius: 5px;
+                padding: 0.6rem 1.2rem;
+                border-radius: 8px;
                 cursor: pointer;
+                font-weight: 600;
+                letter-spacing: 0.02em;
+                box-shadow: 0 4px 8px rgba(255, 102, 0, 0.25);
+                transition: all 0.3s ease;
             }
 
             .refresh-button:hover {
-                background-color: var(--hn-orange-hover);
+                background: linear-gradient(
+                    135deg,
+                    var(--hn-orange-hover),
+                    var(--hn-orange)
+                );
+                transform: translateY(-2px);
+                box-shadow: 0 6px 12px rgba(255, 102, 0, 0.35);
             }
-            
+
             /* Toggle Switch Styles */
             .toggle-switch {
                 position: relative;
@@ -215,13 +376,13 @@
                 cursor: pointer;
                 user-select: none;
             }
-            
+
             .toggle-switch input {
                 opacity: 0;
                 width: 0;
                 height: 0;
             }
-            
+
             .toggle-slider {
                 position: relative;
                 display: inline-block;
@@ -229,10 +390,10 @@
                 height: 20px;
                 background-color: #ccc;
                 border-radius: 34px;
-                transition: .4s;
+                transition: 0.4s;
                 margin-right: 10px;
             }
-            
+
             .toggle-slider:before {
                 position: absolute;
                 content: "";
@@ -242,17 +403,17 @@
                 bottom: 2px;
                 background-color: white;
                 border-radius: 50%;
-                transition: .4s;
+                transition: 0.4s;
             }
-            
+
             input:checked + .toggle-slider {
                 background-color: var(--hn-orange);
             }
-            
+
             input:checked + .toggle-slider:before {
                 transform: translateX(20px);
             }
-            
+
             .toggle-label {
                 font-size: 0.9rem;
             }
@@ -264,122 +425,220 @@
                 justify-content: center;
                 color: var(--text-secondary);
                 text-align: center;
+                font-size: 1.1rem;
+                line-height: 1.6;
+                background: linear-gradient(
+                    135deg,
+                    rgba(59, 130, 246, 0.03),
+                    rgba(59, 130, 246, 0.08)
+                );
+                border-radius: 16px;
+                flex-direction: column;
+                maring: 2rem;
             }
-            
+
+            .no-graph .error-message {
+                color: #e74c3c;
+                margin-top: 1rem;
+                padding: 0.75rem 1rem;
+                background-color: rgba(231, 76, 60, 0.1);
+                border-radius: 8px;
+                max-width: 90%;
+                font-size: 0.9rem;
+            }
+
             .performance-summary {
                 margin: 2rem 0;
             }
-            
+
             .performance-summary h2 {
-                margin-bottom: 1rem;
+                margin-bottom: 1.5rem;
                 border-bottom: 2px solid var(--hn-orange);
-                padding-bottom: 0.5rem;
+                padding-bottom: 0.8rem;
+                font-size: 1.6rem;
+                letter-spacing: 0.02em;
+                position: relative;
             }
-            
+
+            .section-icon {
+                display: inline-block;
+                margin-right: 0.5rem;
+                animation: float 3s ease-in-out infinite;
+            }
+
+            @keyframes float {
+                0% {
+                    transform: translateY(0);
+                }
+                50% {
+                    transform: translateY(-5px);
+                }
+                100% {
+                    transform: translateY(0);
+                }
+            }
+
             .performance-metrics-container {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 1rem;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: 1.5rem;
                 padding: 0.5rem 0;
             }
-            
+
             .performance-metric {
-                flex: 1;
-                min-width: 200px;
                 background-color: var(--bg-secondary);
-                border-radius: 5px;
-                padding: 1.5rem;
+                border-radius: 16px;
+                padding: 1.8rem 1.5rem;
                 text-align: center;
-                transition: transform 0.2s, box-shadow 0.2s;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                transition: all 0.3s ease;
+                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+                position: relative;
+                overflow: hidden;
+                border: 1px solid rgba(59, 130, 246, 0.1);
+                animation: fadeIn 0.8s ease-out forwards;
+                animation-delay: calc(var(--i, 0) * 0.1s);
+                opacity: 0;
             }
-            
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(15px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
             .performance-metric:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                transform: translateY(-8px);
+                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+                border-color: rgba(59, 130, 246, 0.3);
             }
-            
+
+            .performance-metric::after {
+                content: "";
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 5px;
+                background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            }
+
+            @media (prefers-color-scheme: dark) {
+                .performance-metric {
+                    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+                    border: 1px solid rgba(59, 130, 246, 0.15);
+                }
+
+                .performance-metric:hover {
+                    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+                    border-color: rgba(59, 130, 246, 0.4);
+                }
+            }
+
             .metric-label {
-                font-size: 1rem;
-                font-weight: bold;
-                color: var(--hn-orange);
-                margin-bottom: 0.5rem;
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: #3b82f6;
+                margin-bottom: 0.8rem;
+                letter-spacing: 0.03em;
             }
-            
+
             .metric-value {
                 font-size: 2rem;
                 font-weight: bold;
-                margin: 0.5rem 0;
+                margin: 0.8rem 0;
+                background: linear-gradient(135deg, #3b82f6, #60a5fa);
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
             }
-            
+
             .metric-description {
-                font-size: 0.8rem;
+                font-size: 0.9rem;
                 color: var(--text-secondary);
+                margin-top: 0.5rem;
+                font-style: italic;
             }
-            
+
             .verified-badge {
                 position: absolute;
-                top: 0.5rem;
-                right: 0.5rem;
-                background-color: #4CAF50;
+                top: 0.8rem;
+                right: 0.8rem;
+                background: linear-gradient(135deg, #4caf50, #2e7d32);
                 color: white;
-                font-size: 0.7rem;
-                padding: 0.1rem 0.4rem;
-                border-radius: 3px;
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+                border-radius: 8px;
                 font-weight: bold;
-             }
-             
-             .donut-chart-container {
+                box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
+                animation: badgePulse 2s infinite alternate;
+                z-index: 2;
+            }
+
+            @keyframes badgePulse {
+                from {
+                    box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
+                }
+                to {
+                    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.5);
+                }
+            }
+
+            .donut-chart-container {
                 margin-top: 2rem;
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 height: 250px;
-             }
-             
-             .donut-chart {
+            }
+
+            .donut-chart {
                 width: 200px;
                 height: 200px;
                 position: relative;
-             }
-             
-             .donut-chart-text {
+            }
+
+            .donut-chart-text {
                 position: absolute;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
                 text-align: center;
-             }
-             
-             .donut-chart-text .percentage {
+            }
+
+            .donut-chart-text .percentage {
                 font-size: 2rem;
                 font-weight: bold;
                 color: var(--hn-orange);
-             }
-             
-             .donut-chart-text .label {
+            }
+
+            .donut-chart-text .label {
                 font-size: 0.9rem;
                 color: var(--text-secondary);
-             }
-             
-             .chart-legend {
+            }
+
+            .chart-legend {
                 display: flex;
                 justify-content: center;
                 gap: 2rem;
                 margin-top: 1rem;
-             }
-             
-             .legend-item {
+            }
+
+            .legend-item {
                 display: flex;
                 align-items: center;
                 gap: 0.5rem;
-             }
-             
-             .legend-color {
+            }
+
+            .legend-color {
                 width: 16px;
                 height: 16px;
                 border-radius: 4px;
-             }
+            }
         </style>
     </head>
     <body>
@@ -396,67 +655,82 @@
 
         <div class="stats">
             <div class="stat-card">
+                <div class="stat-icon">🏆</div>
                 <div class="stat-number" id="total-alerts">-</div>
-                <div>Verified FP Stories</div>
+                <div class="stat-label">Verified FP Stories</div>
             </div>
             <div class="stat-card">
+                <div class="stat-icon">⭐</div>
                 <div class="stat-number" id="avg-peak-points">-</div>
-                <div>Verified Avg Points</div>
+                <div class="stat-label">Verified Avg Points</div>
             </div>
             <div class="stat-card">
+                <div class="stat-icon">📈</div>
                 <div class="stat-number" id="verified-count">-</div>
-                <div>Total Verified Stories</div>
+                <div class="stat-label">Total Verified Stories</div>
             </div>
         </div>
 
         <div class="performance-summary">
-            <h2>Performance Dashboard</h2>
+            <h2><span class="section-icon">📊</span> Performance Dashboard</h2>
             <div class="performance-metrics-container">
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 1">
                     <div class="metric-label">Total Stories</div>
-                    <div class="metric-value" id="current-frontpage-count">-</div>
-                    <div class="metric-description">Stories tracked in database</div>
+                    <div class="metric-value" id="current-frontpage-count">
+                        -
+                    </div>
+                    <div class="metric-description">
+                        Stories tracked in database
+                    </div>
                 </div>
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 2">
                     <div class="metric-label">Highest Points</div>
                     <div class="metric-value" id="top-ten-count">-</div>
                     <div class="metric-description">Most upvoted story</div>
                 </div>
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 3">
                     <div class="metric-label">Average Points</div>
                     <div class="metric-value" id="most-active-time">-</div>
                     <div class="metric-description">Per story</div>
                 </div>
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 4">
                     <div class="metric-label">Average Time on FP</div>
                     <div class="metric-value" id="avg-frontpage-time">-</div>
                     <div class="metric-description">Hours:minutes</div>
                 </div>
             </div>
         </div>
-        
+
         <div class="performance-summary">
-            <h2>Verified User Analytics</h2>
+            <h2>
+                <span class="section-icon">🔍</span> Verified User Analytics
+            </h2>
             <div class="performance-metrics-container">
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 1">
                     <div class="metric-label">Verified Users</div>
                     <div class="metric-value" id="verified-user-count">-</div>
-                    <div class="metric-description">Unique verified authors</div>
+                    <div class="metric-description">
+                        Unique verified authors
+                    </div>
                 </div>
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 2">
                     <div class="metric-label">Success Rate</div>
                     <div class="metric-value" id="verified-success-rate">-</div>
                     <div class="metric-description">% reaching top 10</div>
                 </div>
-                <div class="performance-metric">
-                    <div class="metric-label">Verified Top Performer</div>
+                <div class="performance-metric" style="--i: 3">
+                    <div class="metric-label">Top Performer</div>
                     <div class="metric-value" id="verified-top-author">-</div>
-                    <div class="metric-description">Most successful verified user</div>
+                    <div class="metric-description">
+                        Most successful verified user
+                    </div>
                 </div>
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 4">
                     <div class="metric-label">Average Peak Points</div>
                     <div class="metric-value" id="verified-avg-points">-</div>
-                    <div class="metric-description">For verified user stories</div>
+                    <div class="metric-description">
+                        For verified user stories
+                    </div>
                 </div>
             </div>
         </div>
@@ -467,7 +741,7 @@
             </button>
             <div class="filter-controls">
                 <label class="toggle-switch">
-                    <input type="checkbox" id="verified-only-toggle">
+                    <input type="checkbox" id="verified-only-toggle" />
                     <span class="toggle-slider"></span>
                     <span class="toggle-label">Verified Users Only</span>
                 </label>
@@ -482,6 +756,7 @@
             <div class="graph-container" id="graph-container">
                 <div class="no-graph" id="no-graph">
                     <p>
+                        <span class="section-icon">📈</span><br />
                         Click on a story to see its rank history on the Hacker
                         News front page.
                     </p>

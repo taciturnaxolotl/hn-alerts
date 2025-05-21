@@ -138,6 +138,12 @@ const server = Bun.serve({
         const verifiedStories = await db.query.stories.findMany({
           where: (stories, { eq }) => eq(stories.isFromMonitoredUser, true),
         });
+        // Get count of verified users in the system
+        const verifiedUsersCount = await db.query.users
+          .findMany({
+            where: (users, { eq }) => eq(users.verified, true),
+          })
+          .then((users) => users.length);
 
         // Count stories on front page (rank <= 30)
         const frontPageCount = verifiedStories.filter(
@@ -155,7 +161,7 @@ const server = Bun.serve({
 
         return new Response(
           JSON.stringify({
-            totalCount: verifiedStories.length,
+            totalCount: verifiedUsersCount,
             frontPageCount: frontPageCount,
             avgPeakPoints: avgPeakPoints,
             timestamp: Math.floor(Date.now() / 1000),
