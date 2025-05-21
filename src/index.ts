@@ -218,6 +218,9 @@ const server = Bun.serve({
         headers: { "Content-Type": "application/json" },
       });
     },
+    "/slack": (res: Request) => {
+      return slackApp.run(res);
+    },
   },
 });
 
