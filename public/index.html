@@ -57,7 +57,6 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                margin-bottom: 2rem;
             }
 
             .header img {
@@ -448,16 +447,7 @@
             }
 
             .performance-summary {
-                margin: 2rem 0;
-            }
-
-            .performance-summary h2 {
-                margin-bottom: 1.5rem;
-                border-bottom: 2px solid var(--hn-orange);
-                padding-bottom: 0.8rem;
-                font-size: 1.6rem;
-                letter-spacing: 0.02em;
-                position: relative;
+                margin-bottom: 2rem;
             }
 
             .section-icon {
@@ -653,26 +643,7 @@
             />
         </div>
 
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-icon">🏆</div>
-                <div class="stat-number" id="total-alerts">-</div>
-                <div class="stat-label">Verified FP Stories</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">⭐</div>
-                <div class="stat-number" id="avg-peak-points">-</div>
-                <div class="stat-label">Verified Avg Points</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📈</div>
-                <div class="stat-number" id="verified-count">-</div>
-                <div class="stat-label">Total Verified Stories</div>
-            </div>
-        </div>
-
         <div class="performance-summary">
-            <h2><span class="section-icon">📊</span> Performance Dashboard</h2>
             <div class="performance-metrics-container">
                 <div class="performance-metric" style="--i: 1">
                     <div class="metric-label">Total Stories</div>
@@ -701,40 +672,6 @@
             </div>
         </div>
 
-        <div class="performance-summary">
-            <h2>
-                <span class="section-icon">🔍</span> Verified User Analytics
-            </h2>
-            <div class="performance-metrics-container">
-                <div class="performance-metric" style="--i: 1">
-                    <div class="metric-label">Verified Users</div>
-                    <div class="metric-value" id="verified-user-count">-</div>
-                    <div class="metric-description">
-                        Unique verified authors
-                    </div>
-                </div>
-                <div class="performance-metric" style="--i: 2">
-                    <div class="metric-label">Success Rate</div>
-                    <div class="metric-value" id="verified-success-rate">-</div>
-                    <div class="metric-description">% reaching top 10</div>
-                </div>
-                <div class="performance-metric" style="--i: 3">
-                    <div class="metric-label">Top Performer</div>
-                    <div class="metric-value" id="verified-top-author">-</div>
-                    <div class="metric-description">
-                        Most successful verified user
-                    </div>
-                </div>
-                <div class="performance-metric" style="--i: 4">
-                    <div class="metric-label">Average Peak Points</div>
-                    <div class="metric-value" id="verified-avg-points">-</div>
-                    <div class="metric-description">
-                        For verified user stories
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="controls">
             <button class="refresh-button" id="refresh-data">
                 Refresh Data
@@ -743,7 +680,7 @@
                 <label class="toggle-switch">
                     <input type="checkbox" id="verified-only-toggle" />
                     <span class="toggle-slider"></span>
-                    <span class="toggle-label">Verified Users Only</span>
+                    <span class="toggle-label">Tracked Users Only</span>
                 </label>
             </div>
         </div>

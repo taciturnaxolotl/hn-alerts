@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     frontPageCount: 0,
     avgPeakPoints: 0,
     totalCount: 0,
+    timestamp: 0,
   };
 
   // Performance metrics elements
@@ -25,17 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const avgFrontpageTimeEl = document.getElementById("avg-frontpage-time");
   let totalStoriesCount = 0; // Track total stories count
 
-  // Verified user analytics elements
-  const verifiedUserCountEl = document.getElementById("verified-user-count");
-  const verifiedSuccessRateEl = document.getElementById(
-    "verified-success-rate",
-  );
-  const verifiedTopAuthorEl = document.getElementById("verified-top-author");
-  const verifiedAvgPointsEl = document.getElementById("verified-avg-points");
-
-  // Initialize performance stats
+  // Initialize stats
   updatePerformanceMetrics([]);
-  updateVerifiedUserAnalytics([]);
 
   // For calculating durations
   const now = Date.now();
@@ -123,7 +115,6 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((response) => response.json())
       .then((data) => {
         verifiedUserStats = data;
-        updateTopRowStats();
       })
       .catch((error) => {
         console.error("Error fetching verified user stats:", error);
@@ -165,10 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Update UI with filtered stories
     displayStories(filteredStories);
-    updateStats(filteredStories);
     updatePerformanceMetrics(allStories); // Always use all stories for this analysis
-    updateVerifiedUserAnalytics(allStories); // Update verified user analytics
-    updateTopRowStats(); // Make sure top row always shows verified user stats
   }
 
   // Display stories in the UI
@@ -399,29 +387,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Update statistics
-  // Update top row stats based on verified user data
-  function updateTopRowStats() {
-    // Update the top row with verified user stats with staggered animation
-    totalAlertsEl.textContent = verifiedUserStats.frontPageCount || "0";
-    totalAlertsEl.style.animationDelay = "0s";
-
-    avgPeakPointsEl.textContent = verifiedUserStats.avgPeakPoints || "0";
-    avgPeakPointsEl.style.animationDelay = "0.1s";
-
-    verifiedCountEl.textContent = verifiedUserStats.totalCount || "0";
-    verifiedCountEl.style.animationDelay = "0.2s";
-  }
-
-  function updateStats(stories) {
-    if (!stories || stories.length === 0) {
-      return;
-    }
-
-    // Don't update the top row stats here anymore
-    // They're now populated from the verified-users API
-  }
-
   // Update performance metrics
   function updatePerformanceMetrics(stories) {
     if (!stories || stories.length === 0) {
@@ -484,71 +449,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Update verified user analytics
-  function updateVerifiedUserAnalytics(stories) {
-    if (!stories || stories.length === 0) {
-      verifiedUserCountEl.textContent = "0";
-      verifiedSuccessRateEl.textContent = "0%";
-      verifiedTopAuthorEl.textContent = "None";
-      verifiedAvgPointsEl.textContent = "0";
-      return;
-    }
-
-    // Get verified user stories
-    const verifiedStories = stories.filter(
-      (story) => story.isFromMonitoredUser,
-    );
-
-    if (verifiedStories.length === 0) {
-      verifiedUserCountEl.textContent = "0";
-      verifiedSuccessRateEl.textContent = "0%";
-      verifiedTopAuthorEl.textContent = "None";
-      verifiedAvgPointsEl.textContent = "0";
-      return;
-    }
-
-    // Count unique verified users
-    const uniqueVerifiedUsers = new Set(
-      verifiedStories.map((story) => story.by),
-    );
-    verifiedUserCountEl.textContent = uniqueVerifiedUsers.size;
-
-    // Calculate success rate (% of verified users' stories that reached top 10)
-    const topTenVerifiedStories = verifiedStories.filter(
-      (story) => story.peakRank <= 10,
-    );
-    const successRate = Math.round(
-      (topTenVerifiedStories.length / verifiedStories.length) * 100,
-    );
-    verifiedSuccessRateEl.textContent = `${successRate}%`;
-
-    // Find top verified author (with most stories)
-    const authorCounts = {};
-    for (const story of verifiedStories) {
-      authorCounts[story.by] = (authorCounts[story.by] || 0) + 1;
-    }
-
-    let topAuthor = "None";
-    let maxStories = 0;
-
-    for (const [author, count] of Object.entries(authorCounts)) {
-      if (count > maxStories) {
-        maxStories = count;
-        topAuthor = author;
-      }
-    }
-
-    verifiedTopAuthorEl.textContent = topAuthor;
-
-    // Calculate average peak points for verified users
-    const totalPeakPoints = verifiedStories.reduce(
-      (sum, s) => sum + (s.peakPoints || s.points),
-      0,
-    );
-    const avgPeakPoints = Math.round(totalPeakPoints / verifiedStories.length);
-    verifiedAvgPointsEl.textContent = avgPeakPoints;
-  }
-
   // Event listeners
   // Add event listeners
   refreshButton.addEventListener("click", fetchStories);
@@ -601,9 +501,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   `;
   document.head.appendChild(style);
-
-  // Set initial placeholder values
-  updateTopRowStats();
 
   // Initial data fetch
   fetchStories();
