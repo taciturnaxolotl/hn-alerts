@@ -4,9 +4,15 @@ import setup from "./features";
 import { db } from "./libs/db";
 import { version, name } from "../package.json";
 import { preloadCaches, invalidateAndRefreshCaches } from "./libs/cacheWarming";
-import { QueryCache, queryCache, createCacheHeaders, compressResponse, createCachedEndpoint } from "./libs/cache";
+import {
+  QueryCache,
+  queryCache,
+  compressResponse,
+  createCachedEndpoint,
+} from "./libs/cache";
+import { handleCORS } from "./libs/cors";
 import root from "../public/index.html";
-import { count, sql } from "drizzle-orm";
+import { count } from "drizzle-orm";
 import { stories } from "./libs/schema";
 
 const environment = process.env.NODE_ENV;
@@ -70,97 +76,124 @@ const server = Bun.serve({
   reusePort: true,
   routes: {
     "/": root,
-    "/api/stories": createCachedEndpoint("leaderboard_stories", async () => {
-      // Only select the specific columns we need for better performance
-      const storyAlerts = await db.query.stories.findMany({
-        columns: {
-          id: true,
-          title: true,
-          url: true,
-          position: true,
-          peakPosition: true,
-          score: true,
-          peakScore: true, 
-          descendants: true,
-          enteredLeaderboardAt: true,
-          firstSeenAt: true,
-          by: true,
-          isFromMonitoredUser: true,
+    // Apply CORS to all API routes
+    "/api/stories": handleCORS(
+      createCachedEndpoint(
+        "leaderboard_stories",
+        async () => {
+          // Only select the specific columns we need for better performance
+          const storyAlerts = await db.query.stories.findMany({
+            columns: {
+              id: true,
+              title: true,
+              url: true,
+              position: true,
+              peakPosition: true,
+              score: true,
+              peakScore: true,
+              descendants: true,
+              enteredLeaderboardAt: true,
+              firstSeenAt: true,
+              by: true,
+              isFromMonitoredUser: true,
+            },
+            where: (stories, { eq }) => eq(stories.isOnLeaderboard, true),
+            orderBy: (stories, { asc }) => [asc(stories.position)],
+            limit: 30, // Reduced from 100 to 30 for better performance
+          });
+
+          // Pre-calculate the time multiplier to optimize date transformations
+          const timeMultiplier = 1000;
+
+          // Transform story data to match the format expected by the frontend
+          return storyAlerts.map((story) => {
+            // Calculate timestamp only once per story
+            const timestamp = story.enteredLeaderboardAt
+              ? new Date(
+                  story.enteredLeaderboardAt * timeMultiplier,
+                ).toISOString()
+              : new Date(story.firstSeenAt * timeMultiplier).toISOString();
+
+            return {
+              id: story.id,
+              title: story.title,
+              url:
+                story.url || `https://news.ycombinator.com/item?id=${story.id}`,
+              rank: story.position,
+              peakRank: story.peakPosition,
+              points: story.score,
+              peakPoints: story.peakScore,
+              comments: story.descendants,
+              timestamp,
+              by: story.by,
+              isFromMonitoredUser: story.isFromMonitoredUser,
+            };
+          });
         },
-        where: (stories, { eq }) => eq(stories.isOnLeaderboard, true),
-        orderBy: (stories, { asc }) => [asc(stories.position)],
-        limit: 30, // Reduced from 100 to 30 for better performance
-      });
+        300,
+      ),
+    ),
 
-      // Pre-calculate the time multiplier to optimize date transformations
-      const timeMultiplier = 1000;
-      
-      // Transform story data to match the format expected by the frontend
-      return storyAlerts.map((story) => {
-        // Calculate timestamp only once per story
-        const timestamp = story.enteredLeaderboardAt
-          ? new Date(story.enteredLeaderboardAt * timeMultiplier).toISOString()
-          : new Date(story.firstSeenAt * timeMultiplier).toISOString();
-          
-        return {
-          id: story.id,
-          title: story.title,
-          url:
-            story.url || `https://news.ycombinator.com/item?id=${story.id}`,
-          rank: story.position,
-          peakRank: story.peakPosition,
-          points: story.score,
-          peakPoints: story.peakScore,
-          comments: story.descendants,
-          timestamp,
-          by: story.by,
-          isFromMonitoredUser: story.isFromMonitoredUser,
-        };
-      });
-    }, 300),
-    "/api/stats/total-stories": createCachedEndpoint("total_stories_count", async () => {
-      const result = await db.select({ count: count() }).from(stories);
-      return {
-        count: Number(result[0]?.count),
-        timestamp: Math.floor(Date.now() / 1000),
-      };
-    }, 300),
-    "/api/stats/verified-users": createCachedEndpoint("verified_users_stats", async () => {
-      // Get stats for verified user stories
-      const verifiedStories = await db.query.stories.findMany({
-        where: (stories, { eq }) => eq(stories.isFromMonitoredUser, true),
-      });
-      // Get count of verified users in the system
-      const verifiedUsersCount = await db.query.users
-        .findMany({
-          where: (users, { eq }) => eq(users.verified, true),
-        })
-        .then((users) => users.length);
+    "/api/stats/total-stories": handleCORS(
+      createCachedEndpoint(
+        "total_stories_count",
+        async () => {
+          const result = await db.select({ count: count() }).from(stories);
+          return {
+            count: Number(result[0]?.count),
+            timestamp: Math.floor(Date.now() / 1000),
+          };
+        },
+        300,
+      ),
+    ),
 
-      // Count stories on front page (rank <= 30)
-      const frontPageCount = verifiedStories.filter(
-        (s) => s.isOnLeaderboard,
-      ).length;
+    "/api/stats/verified-users": handleCORS(
+      createCachedEndpoint(
+        "verified_users_stats",
+        async () => {
+          // Get stats for verified user stories
+          const verifiedStories = await db.query.stories.findMany({
+            where: (stories, { eq }) => eq(stories.isFromMonitoredUser, true),
+          });
+          // Get count of verified users in the system
+          const verifiedUsersCount = await db.query.users
+            .findMany({
+              where: (users, { eq }) => eq(users.verified, true),
+            })
+            .then((users) => users.length);
 
-      // Calculate average peak points for verified users
-      let totalPeakPoints = 0;
-      for (const s of verifiedStories) {
-        if (s.peakScore) totalPeakPoints += s.peakScore;
-      }
-      const avgPeakPoints = verifiedStories.length
-        ? Math.round(totalPeakPoints / verifiedStories.length)
-        : 0;
+          // Count stories on front page (rank <= 30)
+          const frontPageCount = verifiedStories.filter(
+            (s) => s.isOnLeaderboard,
+          ).length;
 
-      return {
-        totalCount: verifiedUsersCount,
-        frontPageCount: frontPageCount,
-        avgPeakPoints: avgPeakPoints,
-        timestamp: Math.floor(Date.now() / 1000),
-      };
-    }, 300),
-    "/api/story/:id/snapshots": async (req) => {
+          // Calculate average peak points for verified users
+          let totalPeakPoints = 0;
+          for (const s of verifiedStories) {
+            if (s.peakScore) totalPeakPoints += s.peakScore;
+          }
+          const avgPeakPoints = verifiedStories.length
+            ? Math.round(totalPeakPoints / verifiedStories.length)
+            : 0;
+
+          return {
+            totalCount: verifiedUsersCount,
+            frontPageCount: frontPageCount,
+            avgPeakPoints: avgPeakPoints,
+            timestamp: Math.floor(Date.now() / 1000),
+          };
+        },
+        300,
+      ),
+    ),
+
+    "/api/story/:id/snapshots": handleCORS(async (req) => {
       try {
-        const storyId = Number.parseInt(req.params.id as string);
+        // Extract the story ID from the URL path
+        const url = new URL(req.url);
+        const match = url.pathname.match(/\/api\/story\/(\d+)\/snapshots/);
+        const storyId = Number.parseInt(match?.[1] ?? "") || Number.NaN;
         if (Number.isNaN(storyId)) {
           return new Response(JSON.stringify({ error: "Invalid story ID" }), {
             status: 400,
@@ -186,7 +219,7 @@ const server = Bun.serve({
               date: new Date(snapshot.timestamp * 1000).toISOString(),
             }));
           },
-          3600 // Cache story snapshots for 1 hour as they change less frequently
+          3600, // Cache story snapshots for 1 hour as they change less frequently
         );
 
         // Execute the cached handler
@@ -201,8 +234,9 @@ const server = Bun.serve({
           },
         );
       }
-    },
-    "/health": (req) => {
+    }),
+
+    "/health": handleCORS(async (req) => {
       const response = new Response(JSON.stringify({ status: "ok" }), {
         headers: {
           "Content-Type": "application/json",
@@ -213,8 +247,10 @@ const server = Bun.serve({
         },
       });
       return compressResponse(req, response);
-    },
+    }),
+
     "/slack": (res: Request) => {
+      // No CORS needed for Slack endpoints
       return slackApp.run(res);
     },
   },
