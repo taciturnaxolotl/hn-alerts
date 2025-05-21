@@ -93,7 +93,12 @@ const server = Bun.serve({
         }));
 
         return new Response(JSON.stringify(alerts), {
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+          },
         });
       } catch (error) {
         console.error("Failed to fetch alerts:", error);
@@ -118,7 +123,12 @@ const server = Bun.serve({
             timestamp: Math.floor(Date.now() / 1000),
           }),
           {
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+              "Pragma": "no-cache",
+              "Expires": "0"
+            },
           },
         );
       } catch (error) {
@@ -167,7 +177,12 @@ const server = Bun.serve({
             timestamp: Math.floor(Date.now() / 1000),
           }),
           {
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+              "Pragma": "no-cache",
+              "Expires": "0"
+            },
           },
         );
       } catch (error) {
@@ -206,7 +221,12 @@ const server = Bun.serve({
         }));
 
         return new Response(JSON.stringify(graphData), {
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+          },
         });
       } catch (error) {
         console.error("Failed to fetch snapshots for story:", error);
@@ -221,7 +241,12 @@ const server = Bun.serve({
     },
     "/health": () => {
       return new Response(JSON.stringify({ status: "ok" }), {
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0"
+        },
       });
     },
     "/slack": (res: Request) => {

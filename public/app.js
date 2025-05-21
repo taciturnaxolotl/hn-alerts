@@ -8,6 +8,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const noGraph = document.getElementById("no-graph");
   const rankChart = document.getElementById("rank-chart");
   const verifiedOnlyToggle = document.getElementById("verified-only-toggle");
+  
+  // Auto-refresh timer
+  let autoRefreshTimer = null;
+  const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // 2 minutes in milliseconds
 
   // Track verified user stats
   let verifiedUserStats = {
@@ -98,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
     storyList.innerHTML = '<div class="loading">Loading stories...</div>';
 
     // Fetch total stories count first
-    fetch("/api/stats/total-stories")
+    fetch(`/api/stats/total-stories?_=${Date.now()}`)
       .then((response) => response.json())
       .then((data) => {
         if (data && typeof data.count !== "undefined") {
@@ -111,16 +115,17 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
     // Fetch verified user stats for the top row
-    fetch("/api/stats/verified-users")
+    fetch(`/api/stats/verified-users?_=${Date.now()}`)
       .then((response) => response.json())
       .then((data) => {
         verifiedUserStats = data;
+        updateTopRowStats(); // Update UI with the new stats
       })
       .catch((error) => {
         console.error("Error fetching verified user stats:", error);
       });
 
-    fetch("/api/stories")
+    fetch(`/api/stories?_=${Date.now()}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Network response was not ok");
@@ -266,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rankChart.style.display = "none";
     noGraph.innerHTML = '<div class="loading">Loading graph data...</div>';
 
-    fetch(`/api/story/${storyId}/snapshots`)
+    fetch(`/api/story/${storyId}/snapshots?_=${Date.now()}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch snapshot data");
@@ -398,7 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Get total stories from the API
-    fetch("/api/stats/total-stories")
+    fetch(`/api/stats/total-stories?_=${Date.now()}`)
       .then((response) => response.json())
       .then((data) => {
         currentFrontpageCountEl.textContent =
@@ -451,7 +456,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Event listeners
   // Add event listeners
-  refreshButton.addEventListener("click", fetchStories);
+  refreshButton.addEventListener("click", () => {
+    fetchStories();
+    // Reset auto-refresh timer when manually refreshing
+    resetAutoRefreshTimer();
+  });
 
   // Toggle verified users only
   verifiedOnlyToggle.addEventListener("change", (e) => {
@@ -502,8 +511,35 @@ document.addEventListener("DOMContentLoaded", () => {
   `;
   document.head.appendChild(style);
 
+  // Auto-refresh function to periodically update data
+  function startAutoRefreshTimer() {
+    // Clear any existing timer first
+    if (autoRefreshTimer) {
+      clearTimeout(autoRefreshTimer);
+    }
+    
+    // Set new timer
+    autoRefreshTimer = setTimeout(() => {
+      console.log("Auto-refreshing data...");
+      fetchStories();
+      // Set up the next refresh
+      startAutoRefreshTimer();
+    }, AUTO_REFRESH_INTERVAL);
+  }
+  
+  // Reset the auto-refresh timer
+  function resetAutoRefreshTimer() {
+    if (autoRefreshTimer) {
+      clearTimeout(autoRefreshTimer);
+    }
+    startAutoRefreshTimer();
+  }
+  
   // Initial data fetch
   fetchStories();
+  
+  // Set up auto-refresh
+  startAutoRefreshTimer();
 
   // We'll initialize the chart on demand rather than empty
 });
