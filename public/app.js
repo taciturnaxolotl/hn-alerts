@@ -8,10 +8,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const noGraph = document.getElementById("no-graph");
   const rankChart = document.getElementById("rank-chart");
   const verifiedOnlyToggle = document.getElementById("verified-only-toggle");
-  
+
   // Auto-refresh timer
   let autoRefreshTimer = null;
   const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // 2 minutes in milliseconds
+
+  // Live counter timer
+  const LIVE_COUNTER_INTERVAL = 1000; // Update every second
+  let liveCounterTimer = null;
 
   // Track verified user stats
   let verifiedUserStats = {
@@ -33,8 +37,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize stats
   updatePerformanceMetrics([]);
 
-  // For calculating durations
-  const now = Date.now();
+  // For calculating durations (updated live)
+  let now = Date.now();
 
   // Utility function to format time duration
   function formatDuration(ms) {
@@ -99,7 +103,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Fetch stories data
   function fetchStories() {
+    // Update last refresh time
+    window.lastRefreshTime = Date.now();
+  
     storyList.innerHTML = '<div class="loading">Loading stories...</div>';
+
+    // Ensure live counters are running
+    if (!liveCounterTimer) {
+      startLiveCounters();
+    }
 
     // Fetch total stories count first
     fetch(`/api/stats/total-stories?_=${Date.now()}`)
@@ -178,6 +190,10 @@ document.addEventListener("DOMContentLoaded", () => {
       topRankRecord = bestRank;
     }
 
+    // Store stories globally for duration updates
+    window.displayedStories = stories;
+    now = Date.now(); // Update current time for accurate initial durations
+
     let html = "";
     for (let i = 0; i < stories.length; i++) {
       const story = stories[i];
@@ -216,7 +232,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Add verified badge if story is from a monitored user
       html += `
-        <div class="story-item${isCurrentTop ? " top-story" : ""}${isCurrentRankOne ? " top-ranked" : ""}${isBestRankOne && !isCurrentRankOne ? " previously-top-ranked" : ""}" data-id="${story.id}" data-url="${story.url}">
+        <div class="story-item${isCurrentTop ? " top-story" : ""}${isCurrentRankOne ? " top-ranked" : ""}${isBestRankOne && !isCurrentRankOne ? " previously-top-ranked" : ""}" data-id="${story.id}" data-url="${story.url}" data-timestamp="${timestampMs}">
             <h3>${story.title}</h3>
             ${rankDisplay}
             <div class="story-meta">
@@ -227,7 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
             <div class="story-meta">
                 <span>Detected: ${date}</span>
-                <span class="duration ${durationClass}" title="Time since first detection">${durationEmoji} ${durationText}</span>
+                <span class="duration ${durationClass}" title="Time since first detection" data-timestamp="${timestampMs}" data-story-id="${story.id}">${durationEmoji} ${durationText}</span>
                 <span><a href="${story.url}" target="_blank" class="external-link">View Story ↗</a></span>
             </div>
         </div>
@@ -240,6 +256,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const storyItems = document.querySelectorAll(".story-item");
 
     for (const item of storyItems) {
+      // Ensure timestamps are available for live updates
+      if (!item.hasAttribute("data-timestamp")) {
+        const storyId = item.getAttribute("data-id");
+        const story = stories.find((s) => s.id.toString() === storyId);
+        if (story?.timestamp) {
+          const timestamp = new Date(story.timestamp).getTime();
+          item.setAttribute("data-timestamp", timestamp);
+        }
+      }
+
       item.addEventListener("click", (e) => {
         // Prevent triggering when clicking links
         if (
@@ -402,6 +428,9 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Update current time for accurate calculations
+    now = Date.now();
+
     // Get total stories from the API
     fetch(`/api/stats/total-stories?_=${Date.now()}`)
       .then((response) => response.json())
@@ -468,6 +497,34 @@ document.addEventListener("DOMContentLoaded", () => {
     applyFiltersAndUpdateUI();
   });
 
+  // Apply updateLiveCounters() periodically for time-based UI elements
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      console.log("Tab is visible again, updating time elements");
+      // Update the current time immediately
+      now = Date.now();
+      // Force update of all time-based elements
+      updateLiveCounters();
+      // Restart live counters if they're not running
+      if (!liveCounterTimer) {
+        startLiveCounters();
+      }
+      // Refresh data if it's been more than 30 seconds since last refresh
+      const lastRefreshTime = window.lastRefreshTime || 0;
+      if (now - lastRefreshTime > 30000) {
+        console.log("Data may be stale, triggering refresh");
+        fetchStories();
+      }
+    } else {
+      // Tab is hidden, pause live counters to save resources
+      if (liveCounterTimer) {
+        clearInterval(liveCounterTimer);
+        liveCounterTimer = null;
+        console.log("Live counters paused while tab is inactive");
+      }
+    }
+  });
+
   // Add CSS for duration indicators
   const style = document.createElement("style");
   style.textContent = `
@@ -517,7 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (autoRefreshTimer) {
       clearTimeout(autoRefreshTimer);
     }
-    
+
     // Set new timer
     autoRefreshTimer = setTimeout(() => {
       console.log("Auto-refreshing data...");
@@ -526,20 +583,125 @@ document.addEventListener("DOMContentLoaded", () => {
       startAutoRefreshTimer();
     }, AUTO_REFRESH_INTERVAL);
   }
-  
+
   // Reset the auto-refresh timer
   function resetAutoRefreshTimer() {
     if (autoRefreshTimer) {
       clearTimeout(autoRefreshTimer);
     }
     startAutoRefreshTimer();
+
+    // Also reset the live counter to ensure synchronized updates
+    if (liveCounterTimer) {
+      clearInterval(liveCounterTimer);
+    }
+    startLiveCounters();
   }
-  
+
+  // Live counter function to update time-based elements
+  function updateLiveCounters() {
+    // Update current time
+    now = Date.now();
+
+    // Update story durations if we have stories displayed
+    if (window.displayedStories && window.displayedStories.length > 0) {
+      // Update all duration spans
+      // Get all story items with timestamps
+      const storyItems = document.querySelectorAll(
+        ".story-item[data-timestamp]",
+      );
+      for (const item of storyItems) {
+        const timestamp = Number.parseInt(
+          item.getAttribute("data-timestamp"),
+          10,
+        );
+        if (Number.isNaN(timestamp)) continue;
+
+        const durationMs = now - timestamp;
+        const durationEl = item.querySelector(".duration");
+
+        if (durationEl) {
+          // Get new duration values
+          const durationText = formatDuration(durationMs);
+          const durationClass = getDurationClass(durationMs);
+          const durationEmoji = getDurationEmoji(durationMs);
+
+          // Update the duration element
+          durationEl.innerHTML = `${durationEmoji} ${durationText}`;
+
+          // Update the class if needed
+          const durationClasses = [
+            "duration-short",
+            "duration-normal",
+            "duration-medium",
+            "duration-long",
+          ];
+          for (const cls of durationClasses) {
+            durationEl.classList.remove(cls);
+          }
+          durationEl.classList.add(durationClass);
+        }
+      }
+
+      // Update average duration in performance metrics if we have the displayed stories
+      if (document.getElementById("avg-frontpage-time")) {
+        let totalMs = 0;
+        let storiesWithDuration = 0;
+
+        for (const story of window.displayedStories) {
+          if (story.timestamp) {
+            const enteredTimestamp = new Date(story.timestamp).getTime();
+
+            // If story is still on front page, calculate duration until now
+            if (story.rank <= 30) {
+              const durationMs = now - enteredTimestamp;
+              totalMs += durationMs;
+              storiesWithDuration++;
+            }
+          }
+        }
+
+        if (storiesWithDuration > 0) {
+          const avgDurationMs = Math.round(totalMs / storiesWithDuration);
+          avgFrontpageTimeEl.textContent = formatDuration(avgDurationMs);
+        }
+      }
+    }
+  }
+
+  // Start live counter updates
+  function startLiveCounters() {
+    // Clear any existing timers
+    if (liveCounterTimer) {
+      clearInterval(liveCounterTimer);
+    }
+
+    // Update immediately first
+    updateLiveCounters();
+
+    // Then set interval for regular updates
+    liveCounterTimer = setInterval(() => {
+      requestAnimationFrame(updateLiveCounters); // Use requestAnimationFrame for smoother updates
+    }, LIVE_COUNTER_INTERVAL);
+
+    console.log("Live counters started - durations will update every second");
+  }
+
+  // Track last refresh time
+  window.lastRefreshTime = Date.now();
+
+  // No need to replace the function
+
   // Initial data fetch
   fetchStories();
-  
+
   // Set up auto-refresh
   startAutoRefreshTimer();
+
+  // Start live counters
+  startLiveCounters();
+
+
 
   // We'll initialize the chart on demand rather than empty
 });
