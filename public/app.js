@@ -58,11 +58,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function getDurationClass(ms) {
     const hours = ms / (1000 * 60 * 60);
 
-    if (hours >= 24) {
-      return "duration-long"; // Long-lasting story (24+ hours)
+    if (hours >= 18) {
+      return "duration-long"; // Long-lasting story (18+ hours)
     }
-    if (hours >= 12) {
-      return "duration-medium"; // Medium-lasting story (12-24 hours)
+    if (hours >= 10) {
+      return "duration-medium"; // Medium-lasting story (10-18 hours)
     }
     if (hours >= 3) {
       return "duration-normal"; // Normal duration (3-12 hours)
