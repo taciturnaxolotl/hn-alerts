@@ -1,4 +1,5 @@
 import { version } from "../../package.json";
+import * as Sentry from "@sentry/bun";
 
 /**
  * Creates consistent cache headers with stable ETags
@@ -81,15 +82,22 @@ export type CacheItem<T> = {
   expiresAt: number;
 };
 
+// Type for registered query functions
+export type QueryFunction<T> = () => Promise<T>;
+
 export class QueryCache {
   private cache: Map<string, CacheItem<unknown>> = new Map();
   private defaultTTL: number = 60 * 5; // 5 minutes in seconds
   private prefetchQueue: Set<string> = new Set();
   private maxItems = 500; // Maximum cache entries
-  private highLoadMode = false; // Track high load mode
-  private highLoadThreshold = 200; // Request threshold for high load
   private requestCounter = 0; // Counter for recent requests
   private lastCounterReset: number = Date.now(); // Last time counter was reset
+
+  // Registry to store query functions for reuse during cache warming
+  private queryRegistry: Map<
+    string,
+    { fn: QueryFunction<unknown>; ttl: number }
+  > = new Map();
 
   constructor(defaultTTL?: number, maxItems?: number) {
     if (defaultTTL) {
@@ -102,17 +110,46 @@ export class QueryCache {
       `Initialized query cache with ${this.defaultTTL}s TTL and max ${this.maxItems} items`,
     );
 
-    // Set up periodic counter reset for load detection
+    // Set up periodic counter reset for monitoring
     setInterval(() => {
-      this.highLoadMode = this.requestCounter > this.highLoadThreshold;
       this.requestCounter = 0;
       this.lastCounterReset = Date.now();
     }, 10000); // Reset every 10 seconds
   }
 
+  /**
+   * Register a query function for later use in cache warming
+   * @param key Cache key
+   * @param queryFn Function that performs the actual query
+   * @param ttl Cache TTL in seconds
+   */
+  register<T>(
+    key: string,
+    queryFn: QueryFunction<T>,
+    ttl: number = this.defaultTTL,
+  ): void {
+    this.queryRegistry.set(key, { fn: queryFn as QueryFunction<unknown>, ttl });
+    console.log(`Registered query function for key: ${key} with TTL: ${ttl}s`);
+  }
+
+  /**
+   * Get all registered cache keys
+   * @returns Array of registered cache keys
+   */
+  getRegisteredKeys(): string[] {
+    return Array.from(this.queryRegistry.keys());
+  }
+
+  /**
+   * Get data from cache or execute the query function
+   * @param key Cache key
+   * @param queryFn Function that performs the actual query
+   * @param ttl Cache TTL in seconds
+   * @returns Query result
+   */
   async get<T>(
     key: string,
-    queryFn: () => Promise<T>,
+    queryFn: QueryFunction<T>,
     ttl: number = this.defaultTTL,
   ): Promise<T> {
     // Track request load
@@ -123,20 +160,12 @@ export class QueryCache {
 
     // Return cached value if it exists and is not expired
     if (cached && cached.expiresAt > now) {
-      // Reduce logging in high load scenarios
-      if (!this.highLoadMode) {
-        console.log(
-          `Cache hit for ${key} (expires in ${cached.expiresAt - now}s)`,
-        );
-      }
+      console.log(
+        `Cache hit for ${key} (expires in ${cached.expiresAt - now}s)`,
+      );
 
       // Prefetch if approaching expiration (last 10% of TTL)
-      // Don't prefetch during high load to reduce DB pressure
-      if (
-        !this.highLoadMode &&
-        cached.expiresAt - now < ttl * 0.1 &&
-        !this.prefetchQueue.has(key)
-      ) {
+      if (cached.expiresAt - now < ttl * 0.1 && !this.prefetchQueue.has(key)) {
         this.prefetch(key, queryFn, ttl);
       }
 
@@ -144,9 +173,7 @@ export class QueryCache {
     }
 
     // Execute the query
-    if (!this.highLoadMode) {
-      console.log(`Cache miss for ${key}, fetching from database...`);
-    }
+    console.log(`Cache miss for ${key}, fetching from database...`);
     const data = await queryFn();
 
     // Cache the result
@@ -165,7 +192,7 @@ export class QueryCache {
   // Background prefetch to refresh cache before expiration
   private prefetch<T>(
     key: string,
-    queryFn: () => Promise<T>,
+    queryFn: QueryFunction<T>,
     ttl: number,
   ): void {
     this.prefetchQueue.add(key);
@@ -186,10 +213,40 @@ export class QueryCache {
         console.log(`Successfully prefetched ${key}`);
       } catch (error) {
         console.error(`Error prefetching ${key}:`, error);
+        Sentry.captureException(error);
       } finally {
         this.prefetchQueue.delete(key);
       }
     }, 0);
+  }
+
+  /**
+   * Warm a specific cache entry using its registered query function
+   * @param key Cache key to warm
+   * @returns Promise resolving to the cached data or null if key not registered
+   */
+  async warmCache<T>(key: string): Promise<T | null> {
+    const registration = this.queryRegistry.get(key);
+    if (!registration) {
+      console.warn(
+        `Cannot warm cache for ${key}: No registered query function`,
+      );
+      return null;
+    }
+
+    try {
+      console.log(`Warming cache for ${key} using registered function`);
+      const data = await this.get(
+        key,
+        registration.fn as QueryFunction<T>,
+        registration.ttl,
+      );
+      return data;
+    } catch (error) {
+      console.error(`Error warming cache for ${key}:`, error);
+      Sentry.captureException(error);
+      return null;
+    }
   }
 
   invalidate(key: string): void {
@@ -224,16 +281,14 @@ export class QueryCache {
       }
     }
 
-    if (!this.highLoadMode) {
-      console.log(`Pruned ${removeCount} oldest items from cache`);
-    }
+    console.log(`Pruned ${removeCount} oldest items from cache`);
   }
 
   // Get cache stats for monitoring
   getStats(): {
     size: number;
     keys: string[];
-    highLoad: boolean;
+    registeredKeys: string[];
     requestRate: number;
   } {
     const elapsedSeconds = (Date.now() - this.lastCounterReset) / 1000;
@@ -243,7 +298,7 @@ export class QueryCache {
     return {
       size: this.cache.size,
       keys: Array.from(this.cache.keys()),
-      highLoad: this.highLoadMode,
+      registeredKeys: Array.from(this.queryRegistry.keys()),
       requestRate: Math.round(requestRate * 100) / 100,
     };
   }
@@ -258,38 +313,20 @@ export class QueryCache {
  */
 export function createCachedEndpoint<T>(
   cacheKey: string,
-  queryFn: (() => Promise<T>) & { highLoad?: () => Promise<T> },
+  queryFn: () => Promise<T>,
   ttl = 300,
 ) {
+  // Register the query function for later use in cache warming
+  queryCache.register(cacheKey, queryFn, ttl);
+
   return async (request: Request) => {
     try {
-      // Check for high load indicators in headers
-      const isHighLoad =
-        queryCache.getStats().highLoad ||
-        request.headers.get("x-high-load") === "true";
-
-      // Use a different cache key under high load if needed
-      const effectiveCacheKey = isHighLoad ? `${cacheKey}_lite` : cacheKey;
-
-      // Execute optimized query function during high load, or regular one otherwise
-      const effectiveQueryFn =
-        isHighLoad && queryFn.highLoad !== undefined
-          ? queryFn.highLoad
-          : queryFn;
-
       // Get data from cache or execute query
-      const data = await queryCache.get(
-        effectiveCacheKey,
-        effectiveQueryFn,
-        ttl,
-      );
+      const data = await queryCache.get(cacheKey, queryFn, ttl);
 
       // Create response with proper caching headers
       const response = new Response(JSON.stringify(data), {
-        headers: {
-          ...createCacheHeaders(effectiveCacheKey, ttl),
-          "X-High-Load": isHighLoad ? "true" : "false",
-        },
+        headers: createCacheHeaders(cacheKey, ttl),
       });
 
       // Apply compression and return
@@ -298,10 +335,8 @@ export function createCachedEndpoint<T>(
       // Log the error with context
       console.error(`Error in endpoint ${cacheKey}:`, error);
 
-      // Capture with Sentry if available
-      if (typeof Sentry !== "undefined" && Sentry.captureException) {
-        Sentry.captureException(error);
-      }
+      // Capture with Sentry
+      Sentry.captureException(error);
 
       // Return consistent error response
       return new Response(
@@ -320,6 +355,3 @@ export function createCachedEndpoint<T>(
 
 // Create a global cache instance
 export const queryCache = new QueryCache();
-
-// Import Sentry for error reporting
-import * as Sentry from "@sentry/bun";

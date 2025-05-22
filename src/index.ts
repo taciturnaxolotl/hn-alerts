@@ -5,10 +5,10 @@ import { db } from "./libs/db";
 import { version, name } from "../package.json";
 import { preloadCaches, invalidateAndRefreshCaches } from "./libs/cacheWarming";
 import {
-  QueryCache,
   queryCache,
   compressResponse,
   createCachedEndpoint,
+  createCacheHeaders,
 } from "./libs/cache";
 import { handleCORS } from "./libs/cors";
 import root from "../public/index.html";
@@ -99,7 +99,7 @@ const server = Bun.serve({
             },
             where: (stories, { eq }) => eq(stories.isOnLeaderboard, true),
             orderBy: (stories, { asc }) => [asc(stories.position)],
-            limit: 30, // Reduced from 100 to 30 for better performance
+            limit: 30,
           });
 
           // Pre-calculate the time multiplier to optimize date transformations
@@ -202,30 +202,38 @@ const server = Bun.serve({
         }
 
         // Create a cached endpoint handler dynamically based on the story ID
-        const handler = createCachedEndpoint(
-          `story_snapshots_${storyId}`,
-          async () => {
-            // Get snapshots for the story
-            const snapshots = await db.query.leaderboardSnapshots.findMany({
-              where: (snapshots, { eq }) => eq(snapshots.storyId, storyId),
-              orderBy: (snapshots, { asc }) => [asc(snapshots.timestamp)],
-            });
+        const cacheKey = `story_snapshots_${storyId}`;
+        const queryFn = async () => {
+          // Get snapshots for the story
+          const snapshots = await db.query.leaderboardSnapshots.findMany({
+            where: (snapshots, { eq }) => eq(snapshots.storyId, storyId),
+            orderBy: (snapshots, { asc }) => [asc(snapshots.timestamp)],
+          });
 
-            // Transform snapshot data for frontend
-            return snapshots.map((snapshot) => ({
-              timestamp: snapshot.timestamp,
-              position: snapshot.position,
-              score: snapshot.score,
-              date: new Date(snapshot.timestamp * 1000).toISOString(),
-            }));
-          },
-          3600, // Cache story snapshots for 1 hour as they change less frequently
-        );
-
-        // Execute the cached handler
-        return handler(req);
+          // Transform snapshot data for frontend
+          return snapshots.map((snapshot) => ({
+            timestamp: snapshot.timestamp,
+            position: snapshot.position,
+            score: snapshot.score,
+            date: new Date(snapshot.timestamp * 1000).toISOString(),
+          }));
+        };
+        
+        // Register this dynamic query for potential cache warming
+        queryCache.register(cacheKey, queryFn, 3600);
+        
+        // Execute the query with caching
+        const data = await queryCache.get(cacheKey, queryFn, 3600);
+        
+        // Return formatted response
+        const response = new Response(JSON.stringify(data), {
+          headers: createCacheHeaders(cacheKey, 3600),
+        });
+        
+        return compressResponse(req, response);
       } catch (error) {
         console.error("Failed to fetch snapshots for story:", error);
+        Sentry.captureException(error);
         return new Response(
           JSON.stringify({ error: "Failed to fetch snapshots" }),
           {
