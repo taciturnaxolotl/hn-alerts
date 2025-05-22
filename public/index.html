@@ -18,6 +18,16 @@
         />
         <meta name="apple-mobile-web-app-title" content="HN Alerts" />
         <link rel="manifest" href="/public/site.webmanifest" />
+        <meta
+            name="theme-color"
+            content="#ff6600"
+            media="(prefers-color-scheme: light)"
+        />
+        <meta
+            name="theme-color"
+            content="#1a1a1a"
+            media="(prefers-color-scheme: dark)"
+        />
         <title>HN Alerts Dashboard</title>
         <link
             rel="stylesheet"
@@ -85,6 +95,7 @@
                 box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
                 border: 1px solid rgba(59, 130, 246, 0.1);
                 transition: all 0.3s ease;
+                max-width: 600px;
             }
 
             .graph-container:hover {
@@ -471,7 +482,7 @@
 
             .performance-metrics-container {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
                 gap: 1.5rem;
                 padding: 0.5rem 0;
             }
@@ -631,16 +642,111 @@
                 border-radius: 4px;
             }
 
-            @media (max-width: 768px) {
+            @media (max-width: 1240px) {
+                .graph-container {
+                    max-width: 500px;
+                }
+
+                .story-list {
+                    max-width: 100%;
+                }
+            }
+
+            @media (max-width: 1015px) {
+                .graph-container {
+                    max-width: 400px;
+                }
+
+                .story-list {
+                    max-width: 100%;
+                }
+            }
+
+            @media (max-width: 765px) {
                 .main-container {
                     flex-direction: column;
                     flex-direction: column-reverse;
+                }
+
+                .graph-container {
+                    max-width: 100%;
+                }
+
+                .story-list {
+                    max-width: 100%;
                 }
             }
 
             @media (max-width: 540px) {
                 .graph-container {
                     height: 300px;
+                }
+
+                body {
+                    font-size: 0.8rem;
+                }
+
+                .story-item h3 {
+                    font-size: 1rem;
+                }
+
+                .metric-value {
+                    font-size: 1.6rem;
+                }
+
+                .stat-number {
+                    font-size: 1.9rem;
+                }
+
+                .performance-metrics-container {
+                    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                }
+            }
+
+            @media (max-width: 420px) {
+                .graph-container {
+                    height: 240px;
+                }
+
+                .no-graph {
+                    font-size: 1rem;
+                }
+
+                body {
+                    font-size: 0.8rem;
+                    padding: 0.7rem;
+                }
+
+                .story-item {
+                    font-size: 0.9rem;
+                }
+
+                .story-item h3 {
+                    font-size: 1.1rem;
+                }
+
+                .story-meta {
+                    font-size: 0.8rem;
+                }
+
+                .metric-value {
+                    font-size: 1.2rem;
+                }
+
+                .stat-number {
+                    font-size: 1.5rem;
+                }
+
+                .header h1 {
+                    font-size: 1.3rem;
+                }
+
+                .header img {
+                    height: 50px;
+                }
+
+                .performance-metric {
+                    padding: 0.8rem 0.7rem;
                 }
             }
         </style>
