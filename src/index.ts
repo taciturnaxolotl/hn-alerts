@@ -19,6 +19,7 @@ import { stories } from "./libs/schema";
 const isProduction = process.env.NODE_ENV === "production";
 
 const environment = process.env.NODE_ENV;
+
 // Only compute git commit in development, use a constant in production to avoid process spawn
 const commit = isProduction
   ? "production"
@@ -91,7 +92,7 @@ await Promise.all([setupPromise, cacheWarmingPromise]).catch((err) => {
 const server = Bun.serve({
   port: process.env.PORT || 3000,
   reusePort: true,
-  maxRequestBodySize: 1024 * 1024, // 1MB max request size
+  maxRequestBodySize: 1024 * 1024,
   routes: {
     "/": root,
     // Apply CORS to all API routes

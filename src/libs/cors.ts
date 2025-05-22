@@ -1,6 +1,5 @@
 /**
  * CORS configuration for the application
- * This adds support for Cloudflare Insights specifically
  */
 
 // Pre-defined CORS headers for better performance
@@ -11,19 +10,16 @@ const CORS_HEADERS = {
   Vary: "Origin",
 };
 
-// Allowed origins for CORS
-const ALLOWED_ORIGINS = [
-  "https://static.cloudflareinsights.com",
-  "https://cloudflareinsights.com",
-];
+// Allowed origins for CORS - can be expanded as needed
+const ALLOWED_ORIGINS: string[] = [];
 
 /**
- * Adds CORS headers to allow Cloudflare Insights
+ * Adds CORS headers to a response
  * @param response The response to add CORS headers to
  * @param origin The request origin to use for Access-Control-Allow-Origin
  * @returns A new response with added CORS headers
  */
-function addCloudflareInsightsCors(
+function addCorsHeaders(
   response: Response,
   origin: string,
 ): Response {
@@ -53,8 +49,8 @@ function addCloudflareInsightsCors(
 function handleCorsPreflightRequest(req: Request): Response {
   const origin = req.headers.get("Origin");
 
-  // Fast path: if origin is not in allowed list, return minimal response
-  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+  // If no origin or not in allowed list (if any are specified)
+  if (!origin || (ALLOWED_ORIGINS.length > 0 && !ALLOWED_ORIGINS.includes(origin))) {
     return new Response(null, { status: 204 });
   }
 
@@ -73,19 +69,12 @@ function handleCorsPreflightRequest(req: Request): Response {
 
 /**
  * Higher-order function that adds CORS support to a request handler
- * Specifically configured for Cloudflare Insights requests
  * @param handler The original request handler function
  * @returns A new handler function with CORS support added
  */
 export function handleCORS(
   handler: (req: Request) => Response | Promise<Response>,
 ): (req: Request) => Promise<Response> {
-  // Cache response for OPTIONS requests
-  const cachedOptionsResponse = new Response(null, {
-    status: 204,
-    headers: CORS_HEADERS,
-  });
-
   return async (req: Request) => {
     // Fast path for OPTIONS - most common CORS request
     if (req.method === "OPTIONS") {
@@ -96,12 +85,12 @@ export function handleCORS(
     const origin = req.headers.get("Origin");
 
     // Fast path for non-CORS requests
-    if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+    if (!origin || (ALLOWED_ORIGINS.length > 0 && !ALLOWED_ORIGINS.includes(origin))) {
       return handler(req);
     }
 
     // Process the request normally then add CORS headers
     const response = await handler(req);
-    return addCloudflareInsightsCors(response, origin);
+    return addCorsHeaders(response, origin);
   };
 }
