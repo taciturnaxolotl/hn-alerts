@@ -34,62 +34,74 @@ export function createCacheHeaders(
 export async function compressResponse(
   request: Request,
   response: Response,
-): Promise<Response> {
-  // Skip compression for small payloads or non-JSON responses
+  // @ts-expect-error
+): Promise<Response | Bun.Response> {
+  // Skip compression for non-JSON responses
   const contentType = response.headers.get("Content-Type");
   if (!contentType?.includes("application/json")) {
     return response;
   }
 
-  // Fast path - check headers in optimization-friendly way
-  const acceptEncoding = request.headers.get("Accept-Encoding") || "";
-
-  // Clone response body once to avoid multiple awaits
+  // Get response body
   const body = await response.text();
 
-  // Only compress responses over a certain size
-  if (body.length < 1024) {
+  // Only compress responses over a certain size (2KB)
+  if (body.length < 2048) {
     return new Response(body, {
       status: response.status,
       headers: response.headers,
     });
   }
 
-  // Pre-extract headers to avoid repeated calls
+  // Get headers once
   const headers = Object.fromEntries(response.headers.entries());
 
-  if (acceptEncoding.includes("gzip")) {
-    // Create compressed body with Bun's built-in gzip compression
-    const compressedBody = Bun.gzipSync(Buffer.from(body));
+  // Check if client accepts compression
+  const acceptEncoding = request.headers.get("Accept-Encoding") || "";
 
-    // Only use compression if it actually reduces size
-    if (compressedBody.length < body.length) {
-      return new Response(compressedBody, {
-        status: response.status,
-        headers: {
-          ...headers,
-          "Content-Encoding": "gzip",
-          "Content-Length": compressedBody.length.toString(),
-        },
-      });
+  if (acceptEncoding.includes("gzip")) {
+    try {
+      const compressedBody = Bun.gzipSync(Buffer.from(body));
+
+      // Only compress if it actually reduces size
+      if (compressedBody.length < body.length) {
+        return new Response(compressedBody, {
+          status: response.status,
+          headers: {
+            ...headers,
+            "Content-Encoding": "gzip",
+            "Content-Length": compressedBody.length.toString(),
+          },
+        });
+      }
+    } catch (error) {
+      // Fall back to uncompressed if compression fails
+      if (!isProduction) {
+        console.error("Compression error:", error);
+      }
     }
   } else if (acceptEncoding.includes("deflate")) {
-    const compressedBody = Bun.deflateSync(Buffer.from(body));
+    try {
+      const compressedBody = Bun.deflateSync(Buffer.from(body));
 
-    // Only use compression if it actually reduces size
-    if (compressedBody.length < body.length) {
-      return new Response(compressedBody, {
-        status: response.status,
-        headers: {
-          ...headers,
-          "Content-Encoding": "deflate",
-          "Content-Length": compressedBody.length.toString(),
-        },
-      });
+      if (compressedBody.length < body.length) {
+        return new Response(compressedBody, {
+          status: response.status,
+          headers: {
+            ...headers,
+            "Content-Encoding": "deflate",
+            "Content-Length": compressedBody.length.toString(),
+          },
+        });
+      }
+    } catch (error) {
+      if (!isProduction) {
+        console.error("Deflate compression error:", error);
+      }
     }
   }
 
-  // Return original response if compression not supported/needed
+  // Return original response if compression not possible
   return new Response(body, {
     status: response.status,
     headers: headers,
@@ -113,6 +125,10 @@ export class QueryCache {
   private maxItems = 500; // Maximum cache entries
   private requestCounter = 0; // Counter for recent requests
   private lastCounterReset: number = Date.now(); // Last time counter was reset
+
+  // Cache hits and misses tracking
+  private hits = 0;
+  private misses = 0;
 
   // Registry to store query functions for reuse during cache warming
   private queryRegistry: Map<
@@ -190,43 +206,48 @@ export class QueryCache {
 
     // Fast path: Return cached value if it exists and is not expired
     if (cached && cached.expiresAt > now) {
+      // Track hit rate
+      this.hits++;
+
       if (!isProduction) {
         console.log(
           `Cache hit for ${key} (expires in ${cached.expiresAt - now}s)`,
         );
       }
 
-      // Prefetch if approaching expiration (last 15% of TTL) in non-prod environments
-      // In production, only prefetch at 5% to reduce overhead
-      const prefetchThreshold = isProduction ? 0.05 : 0.15;
-      if (
-        cached.expiresAt - now < ttl * prefetchThreshold &&
-        !this.prefetchQueue.has(key)
-      ) {
+      // Only prefetch if not already in queue and approaching expiry
+      const timeToExpiry = cached.expiresAt - now;
+      const prefetchThreshold = isProduction ? ttl / 20 : ttl / 7; // 5% or 15%
+
+      if (timeToExpiry < prefetchThreshold && !this.prefetchQueue.has(key)) {
+        // Schedule prefetch in background
         this.prefetch(key, queryFn, ttl);
       }
 
       return cached.data as T;
     }
 
+    // Track miss rate
+    this.misses++;
+
     // Execute the query (cache miss)
     if (!isProduction) {
       console.log(`Cache miss for ${key}, fetching from database...`);
     }
 
+    // Execute query and store result
     const data = await queryFn();
 
-    // Cache the result with timestamp optimization
+    // Cache the result
     this.cache.set(key, {
       data,
       timestamp: now,
       expiresAt: now + ttl,
     });
 
-    // Only prune the cache in non-critical paths
+    // Defer pruning to not block response path
     if (this.cache.size > this.maxItems) {
-      // Defer pruning to not block response
-      setTimeout(() => this.pruneCache(), 0);
+      queueMicrotask(() => this.pruneCache());
     }
 
     return data;
@@ -326,28 +347,20 @@ export class QueryCache {
   private pruneCache(): void {
     if (this.cache.size <= this.maxItems) return;
 
-    // Get all entries sorted by timestamp (oldest first)
-    // Only convert to array and sort what we need for better performance
-    // This is much faster than sorting the entire cache
-    const entries = Array.from(this.cache.entries()).sort(
-      (a, b) => a[1].timestamp - b[1].timestamp,
-    );
+    // Get entries as array for sorting
+    const entries = Array.from(this.cache.entries());
 
-    // Calculate how many to remove - remove in larger batches when far over limit
-    const overageAmount = this.cache.size - this.maxItems;
-    const removeCount = Math.min(
-      Math.ceil(overageAmount * 1.2), // Remove 20% more than needed to avoid frequent pruning
-      Math.floor(this.maxItems * 0.2), // But never more than 20% of max items
-    );
+    // Sort by timestamp (oldest first)
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+    // Calculate how many to remove
+    const removeCount = Math.ceil(this.cache.size - this.maxItems * 0.8);
 
     // Remove oldest entries
-    if (entries.length > 0) {
-      // Take a slice of entries to remove for better performance
-      const toRemove = entries.slice(0, removeCount);
-
-      // Use batch delete for better efficiency
-      for (const [key] of toRemove) {
-        this.cache.delete(key);
+    for (let i = 0; i < removeCount && i < entries.length; i++) {
+      const entry = entries[i];
+      if (entry?.[0]) {
+        this.cache.delete(entry[0]);
       }
     }
 
@@ -362,89 +375,86 @@ export class QueryCache {
     keys: string[];
     registeredKeys: string[];
     requestRate: number;
+    hitRate: number;
   } {
     const elapsedSeconds = (Date.now() - this.lastCounterReset) / 1000;
     const requestRate =
       elapsedSeconds > 0 ? this.requestCounter / elapsedSeconds : 0;
+
+    const totalRequests = this.hits + this.misses;
+    const hitRate = totalRequests > 0 ? this.hits / totalRequests : 0;
 
     return {
       size: this.cache.size,
       keys: Array.from(this.cache.keys()),
       registeredKeys: Array.from(this.queryRegistry.keys()),
       requestRate: Math.round(requestRate * 100) / 100,
+      hitRate: Math.round(hitRate * 100) / 100,
     };
   }
 }
 
+// Pre-prepared error response to avoid recreation
+const ERROR_RESPONSE = JSON.stringify({
+  error: "An error occurred processing your request",
+  code: "INTERNAL_SERVER_ERROR",
+});
+
+// Create a global cache instance
+export const queryCache = new QueryCache();
+
 /**
  * Factory function for creating consistent API endpoint handlers
- * Creates consistent API endpoint handlers
  * @param cacheKey Key for caching the response
  * @param queryFn Function that performs the actual database query
  * @param ttl Cache TTL in seconds
  */
-// Memoized JSON.stringify for common objects in high-traffic scenarios
-const stringifyCache = new Map<string, string>();
-
 export function createCachedEndpoint<T>(
   cacheKey: string,
   queryFn: () => Promise<T>,
   ttl = 300,
 ) {
-  // Register the query function for later use in cache warming
+  // Register the query function for cache warming
   queryCache.register(cacheKey, queryFn, ttl);
 
   // Pre-create cache headers to avoid recreating them on each request
   const cacheHeaders = createCacheHeaders(cacheKey, ttl);
+
+  // Prepare common response headers
+  const errorHeaders = {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-cache, no-store",
+  };
+
+  // Pre-build common responses for reuse
+  const errorResponse = new Response(ERROR_RESPONSE, {
+    status: 500,
+    headers: errorHeaders,
+  });
 
   return async (request: Request) => {
     try {
       // Get data from cache or execute query
       const data = await queryCache.get(cacheKey, queryFn, ttl);
 
-      let jsonString: string;
-
-      // Try to use the stringify cache for very frequent identical responses
-      // This helps tremendously with high-traffic endpoints returning the same data
-      const cacheStringKey = cacheKey + JSON.stringify(data);
-      if (stringifyCache.has(cacheStringKey)) {
-        jsonString = stringifyCache.get(cacheStringKey)!;
-      } else {
-        jsonString = JSON.stringify(data);
-        // Only cache strings under a certain size to avoid memory issues
-        if (jsonString.length < 10000 && stringifyCache.size < 50) {
-          stringifyCache.set(cacheStringKey, jsonString);
-        }
-      }
-
       // Create response with proper caching headers
-      const response = new Response(jsonString, {
+      const response = new Response(JSON.stringify(data), {
         headers: cacheHeaders,
       });
 
       // Apply compression and return
       return compressResponse(request, response);
     } catch (error) {
-      // Log the error with context
-      console.error(`Error in endpoint ${cacheKey}:`, error);
+      // Minimal logging in production
+      if (!isProduction) {
+        console.error(`Error in endpoint ${cacheKey}:`, error);
+      }
 
-      // Capture with Sentry
+      // Report to Sentry without blocking
       Sentry.captureException(error);
 
-      // Return consistent error response
-      return new Response(
-        JSON.stringify({
-          error: "An error occurred processing your request",
-          code: "INTERNAL_SERVER_ERROR",
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      // Return pre-built error response
+      return errorResponse.clone();
     }
   };
 }
-
-// Create a global cache instance
-export const queryCache = new QueryCache();

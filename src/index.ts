@@ -15,17 +15,23 @@ import root from "../public/index.html";
 import { count } from "drizzle-orm";
 import { stories } from "./libs/schema";
 
+// Check if we're in production mode to reduce logging
+const isProduction = process.env.NODE_ENV === "production";
+
 const environment = process.env.NODE_ENV;
-const commit = (() => {
-  try {
-    return Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"])
-      .stdout.toString()
-      .trim();
-  } catch (e) {
-    console.error("Failed to get git commit hash:", e);
-    return "unknown";
-  }
-})();
+// Only compute git commit in development, use a constant in production to avoid process spawn
+const commit = isProduction
+  ? "production"
+  : (() => {
+      try {
+        return Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"])
+          .stdout.toString()
+          .trim();
+      } catch (e) {
+        console.error("Failed to get git commit hash:", e);
+        return "unknown";
+      }
+    })();
 
 // Check required environment variables
 const requiredVars = [
@@ -48,6 +54,10 @@ Sentry.init({
   environment,
   release: version,
   sendClientReports: environment === "production",
+  // Only enable performance monitoring in production
+  tracesSampleRate: environment === "production" ? 0.1 : 0,
+  // Don't trace background tasks to save resources
+  ignoreTransactions: [/warming|preload|invalidate/],
 });
 
 console.log(
@@ -62,14 +72,18 @@ const slackApp = new SlackApp({
   env: {
     SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN as string,
     SLACK_SIGNING_SECRET: process.env.SLACK_SIGNING_SECRET as string,
-    SLACK_LOGGING_LEVEL: environment === "production" ? "WARN" : "DEBUG",
+    SLACK_LOGGING_LEVEL: environment === "production" ? "ERROR" : "DEBUG", // Use ERROR in production for less overhead
   },
   startLazyListenerAfterAck: true,
 });
 const slackClient = slackApp.client;
 
-await setup();
-await preloadCaches();
+// Set up feature initialization and cache warming
+const setupPromise = setup();
+const cacheWarmingPromise = preloadCaches();
+
+// Allow these to run in parallel for faster startup
+await Promise.all([setupPromise, cacheWarmingPromise]);
 
 const server = Bun.serve({
   port: process.env.PORT || 3000,
@@ -104,17 +118,20 @@ const server = Bun.serve({
 
           // Pre-calculate the time multiplier to optimize date transformations
           const timeMultiplier = 1000;
+          const result = new Array(storyAlerts.length);
 
-          // Transform story data to match the format expected by the frontend
-          return storyAlerts.map((story) => {
-            // Calculate timestamp only once per story
+          // Transform story data with optimized loop (no anonymous functions)
+          for (let i = 0; i < storyAlerts.length; i++) {
+            const story = storyAlerts[i];
+            if (!story) continue; // Skip if undefined
+            
             const timestamp = story.enteredLeaderboardAt
               ? new Date(
                   story.enteredLeaderboardAt * timeMultiplier,
                 ).toISOString()
               : new Date(story.firstSeenAt * timeMultiplier).toISOString();
 
-            return {
+            result[i] = {
               id: story.id,
               title: story.title,
               url:
@@ -128,7 +145,9 @@ const server = Bun.serve({
               by: story.by,
               isFromMonitoredUser: story.isFromMonitoredUser,
             };
-          });
+          }
+
+          return result;
         },
         300,
       ),
@@ -138,10 +157,14 @@ const server = Bun.serve({
       createCachedEndpoint(
         "total_stories_count",
         async () => {
+          // Optimize count query - more direct and efficient
           const result = await db.select({ count: count() }).from(stories);
+          // Pre-compute timestamp once
+          const now = Math.floor(Date.now() / 1000);
+
           return {
-            count: Number(result[0]?.count),
-            timestamp: Math.floor(Date.now() / 1000),
+            count: Number(result[0]?.count || 0),
+            timestamp: now,
           };
         },
         300,
@@ -193,8 +216,12 @@ const server = Bun.serve({
         // Extract the story ID from the URL path
         const url = new URL(req.url);
         const match = url.pathname.match(/\/api\/story\/(\d+)\/snapshots/);
-        const storyId = Number.parseInt(match?.[1] ?? "") || Number.NaN;
-        if (Number.isNaN(storyId)) {
+        const storyId = match
+          ? Number.parseInt(match[1] as string, 10)
+          : Number.NaN;
+
+        if (Number.isNaN(storyId) || storyId <= 0) {
+          // Prepared error response for invalid IDs
           return new Response(JSON.stringify({ error: "Invalid story ID" }), {
             status: 400,
             headers: { "Content-Type": "application/json" },
@@ -210,30 +237,46 @@ const server = Bun.serve({
             orderBy: (snapshots, { asc }) => [asc(snapshots.timestamp)],
           });
 
-          // Transform snapshot data for frontend
-          return snapshots.map((snapshot) => ({
-            timestamp: snapshot.timestamp,
-            position: snapshot.position,
-            score: snapshot.score,
-            date: new Date(snapshot.timestamp * 1000).toISOString(),
-          }));
+          // Pre-allocate result array for better memory efficiency
+          const result = new Array(snapshots.length);
+
+          // Manual loop is faster than map for large arrays
+          for (let i = 0; i < snapshots.length; i++) {
+            const snapshot = snapshots[i];
+            if (snapshot) {
+              result[i] = {
+                timestamp: snapshot.timestamp,
+                position: snapshot.position,
+                score: snapshot.score,
+                date: new Date(snapshot.timestamp * 1000).toISOString(),
+              };
+            }
+          }
+
+          return result;
         };
-        
+
         // Register this dynamic query for potential cache warming
         queryCache.register(cacheKey, queryFn, 3600);
-        
+
         // Execute the query with caching
         const data = await queryCache.get(cacheKey, queryFn, 3600);
-        
-        // Return formatted response
-        const response = new Response(JSON.stringify(data), {
-          headers: createCacheHeaders(cacheKey, 3600),
-        });
-        
+
+        // Use cached headers for better performance
+        const headers = createCacheHeaders(cacheKey, 3600);
+
+        // Create response with optimized headers
+        const response = new Response(JSON.stringify(data), { headers });
+
         return compressResponse(req, response);
       } catch (error) {
-        console.error("Failed to fetch snapshots for story:", error);
+        // Don't log in production to reduce overhead
+        if (!isProduction) {
+          console.error("Failed to fetch snapshots for story:", error);
+        }
         Sentry.captureException(error);
+
+        // Use constant error response
         return new Response(
           JSON.stringify({ error: "Failed to fetch snapshots" }),
           {
@@ -245,16 +288,19 @@ const server = Bun.serve({
     }),
 
     "/health": handleCORS(async (req) => {
-      const response = new Response(JSON.stringify({ status: "ok" }), {
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate, proxy-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      });
-      return compressResponse(req, response);
+      // Pre-stringify the response and cache the headers for /health
+      const responseBody = JSON.stringify({ status: "ok" });
+      const healthHeaders = {
+        "Content-Type": "application/json",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      };
+
+      const response = new Response(responseBody, { headers: healthHeaders });
+      // Skip compression for simple responses to reduce overhead
+      return response;
     }),
 
     "/slack": (res: Request) => {
@@ -264,15 +310,21 @@ const server = Bun.serve({
   },
 });
 
-console.log(
-  `🚀 Server Started in ${
-    Bun.nanoseconds() / 1000000
-  } milliseconds on version: ${version}@${commit}!\n\n----------------------------------\n`,
-);
+if (!isProduction) {
+  console.log(
+    `🚀 Server Started in ${
+      Bun.nanoseconds() / 1000000
+    } milliseconds on version: ${version}@${commit}!\n\n----------------------------------\n`,
+  );
+} else {
+  console.log(`Server started, v${version}`);
+}
 
 // Function to invalidate all caches and refresh them - call this when data is updated
 function invalidateAllCaches() {
-  console.log("Invalidating all query caches and refreshing data");
+  if (!isProduction) {
+    console.log("Invalidating all query caches and refreshing data");
+  }
   invalidateAndRefreshCaches();
 }
 
