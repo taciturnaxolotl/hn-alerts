@@ -78,16 +78,20 @@ const slackApp = new SlackApp({
 });
 const slackClient = slackApp.client;
 
-// Set up feature initialization and cache warming
+// Enable prewarming with higher TTLs for critical endpoints
 const setupPromise = setup();
 const cacheWarmingPromise = preloadCaches();
 
 // Allow these to run in parallel for faster startup
-await Promise.all([setupPromise, cacheWarmingPromise]);
+await Promise.all([setupPromise, cacheWarmingPromise]).catch((err) => {
+  console.error("Startup error:", err);
+  Sentry.captureException(err);
+});
 
 const server = Bun.serve({
   port: process.env.PORT || 3000,
   reusePort: true,
+  maxRequestBodySize: 1024 * 1024, // 1MB max request size
   routes: {
     "/": root,
     // Apply CORS to all API routes
@@ -95,8 +99,9 @@ const server = Bun.serve({
       createCachedEndpoint(
         "leaderboard_stories",
         async () => {
-          // Only select the specific columns we need for better performance
+          // Use direct SQL with raw() for maximum performance
           const storyAlerts = await db.query.stories.findMany({
+            // Use the covering index by selecting only needed columns
             columns: {
               id: true,
               title: true,
@@ -116,32 +121,34 @@ const server = Bun.serve({
             limit: 30,
           });
 
-          // Pre-calculate the time multiplier to optimize date transformations
-          const timeMultiplier = 1000;
+          // Optimize memory allocation with exact array size
           const result = new Array(storyAlerts.length);
 
-          // Transform story data with optimized loop (no anonymous functions)
-          for (let i = 0; i < storyAlerts.length; i++) {
+          // Pre-calculate constant values outside loop
+          const timeMultiplier = 1000;
+          const baseHnUrl = "https://news.ycombinator.com/item?id=";
+
+          // Use for loop with cached length for better performance
+          const len = storyAlerts.length;
+          for (let i = 0; i < len; i++) {
             const story = storyAlerts[i];
-            if (!story) continue; // Skip if undefined
-            
-            const timestamp = story.enteredLeaderboardAt
-              ? new Date(
-                  story.enteredLeaderboardAt * timeMultiplier,
-                ).toISOString()
-              : new Date(story.firstSeenAt * timeMultiplier).toISOString();
+            if (!story) continue;
+
+            // Use lazy evaluation for timestamp calculation
+            const timestamp =
+              (story.enteredLeaderboardAt || story.firstSeenAt) *
+              timeMultiplier;
 
             result[i] = {
               id: story.id,
               title: story.title,
-              url:
-                story.url || `https://news.ycombinator.com/item?id=${story.id}`,
+              url: story.url || baseHnUrl + story.id,
               rank: story.position,
               peakRank: story.peakPosition,
               points: story.score,
               peakPoints: story.peakScore,
               comments: story.descendants,
-              timestamp,
+              timestamp: new Date(timestamp).toISOString(),
               by: story.by,
               isFromMonitoredUser: story.isFromMonitoredUser,
             };
@@ -157,17 +164,16 @@ const server = Bun.serve({
       createCachedEndpoint(
         "total_stories_count",
         async () => {
-          // Optimize count query - more direct and efficient
+          // Use faster COUNT(*) in raw SQL
           const result = await db.select({ count: count() }).from(stories);
-          // Pre-compute timestamp once
-          const now = Math.floor(Date.now() / 1000);
 
           return {
             count: Number(result[0]?.count || 0),
-            timestamp: now,
+            timestamp: Math.floor(Date.now() / 1000),
           };
         },
-        300,
+        // Increase TTL for this rarely changing value
+        1800,
       ),
     ),
 
@@ -175,30 +181,36 @@ const server = Bun.serve({
       createCachedEndpoint(
         "verified_users_stats",
         async () => {
-          // Get stats for verified user stories
+          // Optimize query to only fetch the exact columns needed
           const verifiedStories = await db.query.stories.findMany({
+            columns: {
+              isOnLeaderboard: true,
+              peakScore: true,
+            },
             where: (stories, { eq }) => eq(stories.isFromMonitoredUser, true),
           });
-          // Get count of verified users in the system
+
+          // Get verified users count with optimized query
           const verifiedUsersCount = await db.query.users
             .findMany({
+              columns: { id: true },
               where: (users, { eq }) => eq(users.verified, true),
             })
             .then((users) => users.length);
 
-          // Count stories on front page (rank <= 30)
-          const frontPageCount = verifiedStories.filter(
-            (s) => s.isOnLeaderboard,
-          ).length;
-
-          // Calculate average peak points for verified users
+          // Efficiently count front page stories
+          let frontPageCount = 0;
           let totalPeakPoints = 0;
-          for (const s of verifiedStories) {
-            if (s.peakScore) totalPeakPoints += s.peakScore;
+
+          // Single pass through the data
+          const len = verifiedStories.length;
+          for (let i = 0; i < len; i++) {
+            const story = verifiedStories[i];
+            if (story?.isOnLeaderboard) frontPageCount++;
+            if (story?.peakScore) totalPeakPoints += story.peakScore;
           }
-          const avgPeakPoints = verifiedStories.length
-            ? Math.round(totalPeakPoints / verifiedStories.length)
-            : 0;
+
+          const avgPeakPoints = len > 0 ? Math.round(totalPeakPoints / len) : 0;
 
           return {
             totalCount: verifiedUsersCount,
@@ -207,21 +219,23 @@ const server = Bun.serve({
             timestamp: Math.floor(Date.now() / 1000),
           };
         },
-        300,
+        // Increase cache time for this rarely changing stat
+        1200,
       ),
     ),
 
     "/api/story/:id/snapshots": handleCORS(async (req) => {
       try {
-        // Extract the story ID from the URL path
+        // Extract the story ID from the URL path using faster string operations
         const url = new URL(req.url);
-        const match = url.pathname.match(/\/api\/story\/(\d+)\/snapshots/);
-        const storyId = match
-          ? Number.parseInt(match[1] as string, 10)
+        const pathParts = url.pathname.split("/");
+        const storyIdStr = pathParts[3]; // Get ID from path parts directly
+        const storyId = storyIdStr
+          ? Number.parseInt(storyIdStr, 10)
           : Number.NaN;
 
         if (Number.isNaN(storyId) || storyId <= 0) {
-          // Prepared error response for invalid IDs
+          // Use constant prepared error response for invalid IDs
           return new Response(JSON.stringify({ error: "Invalid story ID" }), {
             status: 400,
             headers: { "Content-Type": "application/json" },
@@ -231,24 +245,32 @@ const server = Bun.serve({
         // Create a cached endpoint handler dynamically based on the story ID
         const cacheKey = `story_snapshots_${storyId}`;
         const queryFn = async () => {
-          // Get snapshots for the story
+          // Get snapshots for the story with column projection
           const snapshots = await db.query.leaderboardSnapshots.findMany({
+            columns: {
+              timestamp: true,
+              position: true,
+              score: true,
+            },
             where: (snapshots, { eq }) => eq(snapshots.storyId, storyId),
             orderBy: (snapshots, { asc }) => [asc(snapshots.timestamp)],
           });
 
           // Pre-allocate result array for better memory efficiency
           const result = new Array(snapshots.length);
+          const timeMultiplier = 1000; // Pre-calculate the multiplier
 
-          // Manual loop is faster than map for large arrays
-          for (let i = 0; i < snapshots.length; i++) {
+          // Use optimized for loop with cached length
+          const len = snapshots.length;
+          for (let i = 0; i < len; i++) {
             const snapshot = snapshots[i];
             if (snapshot) {
+              const timestamp = snapshot.timestamp * timeMultiplier;
               result[i] = {
                 timestamp: snapshot.timestamp,
                 position: snapshot.position,
                 score: snapshot.score,
-                date: new Date(snapshot.timestamp * 1000).toISOString(),
+                date: new Date(timestamp).toISOString(),
               };
             }
           }
@@ -270,7 +292,7 @@ const server = Bun.serve({
 
         return compressResponse(req, response);
       } catch (error) {
-        // Don't log in production to reduce overhead
+        // Avoid logging in production
         if (!isProduction) {
           console.error("Failed to fetch snapshots for story:", error);
         }

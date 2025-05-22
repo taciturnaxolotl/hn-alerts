@@ -13,14 +13,20 @@ const sqlite = new Database(dbPath, {
 });
 
 // Set a longer busy timeout to reduce "database is locked" errors
-sqlite.exec("PRAGMA busy_timeout = 5000;");
+sqlite.exec("PRAGMA busy_timeout = 10000;");
 
 // Enable Write-Ahead Logging mode for better concurrent performance
 sqlite.exec("PRAGMA journal_mode = WAL;");
 // Set synchronous mode for better performance (still safe in WAL mode)
 sqlite.exec("PRAGMA synchronous = NORMAL;");
-// Increase cache size for better performance
-sqlite.exec("PRAGMA cache_size = -16000;"); // Use ~16MB of memory for cache
+// Increase cache size for better performance (32MB instead of 16MB)
+sqlite.exec("PRAGMA cache_size = -32000;");
+// Enable memory-mapped I/O for better read performance
+sqlite.exec("PRAGMA mmap_size = 268435456;"); // 256MB
+// Optimize query planner
+sqlite.exec("PRAGMA optimize;");
+// Increase page size for better I/O efficiency
+sqlite.exec("PRAGMA page_size = 8192;");
 
 // Create a Drizzle instance with the database and schema
 export const db = drizzle(sqlite, { schema });
