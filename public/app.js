@@ -117,6 +117,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Update last refresh time
     window.lastRefreshTime = Date.now();
 
+    // Keep a copy of the current stories for metrics calculation during loading
+    const previousStories = allStories && allStories.length > 0 ? [...allStories] : null;
+    
     storyList.innerHTML = '<div class="loading">Loading stories...</div>';
 
     // Ensure live counters are running
@@ -234,18 +237,33 @@ document.addEventListener("DOMContentLoaded", () => {
           // Store all stories for filtering
           allStories = data;
           // Apply filters and update UI
-          applyFiltersAndUpdateUI();
+          applyFiltersAndUpdateUI(previousStories);
         }
       })
       .catch((error) => {
-        storyList.innerHTML = `<div class="loading">Error loading data: ${error.message}</div>`;
+        // If there was an error but we have previous stories, keep showing them
+        if (previousStories && previousStories.length > 0) {
+          allStories = previousStories;
+          applyFiltersAndUpdateUI();
+        } else {
+          storyList.innerHTML = `<div class="loading">Error loading data: ${error.message}</div>`;
+        }
         console.error("Error fetching stories:", error);
       });
   }
 
   // Apply filters and update UI
-  function applyFiltersAndUpdateUI() {
-    if (!allStories || allStories.length === 0) return;
+  function applyFiltersAndUpdateUI(fallbackStories = null) {
+    // Use fallbackStories for metrics if current stories are empty
+    const storiesForMetrics = (!allStories || allStories.length === 0) ? 
+      fallbackStories : allStories;
+    
+    if (!allStories || allStories.length === 0) {
+      if (!fallbackStories) return;
+      // If we have no current stories but have fallback, only update metrics
+      updatePerformanceMetrics(fallbackStories);
+      return;
+    }
 
     // Apply filters
     let filteredStories = allStories;
@@ -259,7 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Update UI with filtered stories
     displayStories(filteredStories);
-    updatePerformanceMetrics(allStories); // Always use all stories for this analysis
+    updatePerformanceMetrics(storiesForMetrics); // Use appropriate stories for metrics
   }
 
   // Display stories in the UI
@@ -540,10 +558,17 @@ document.addEventListener("DOMContentLoaded", () => {
   // Update performance metrics
   function updatePerformanceMetrics(stories) {
     if (!stories || stories.length === 0) {
-      // Only set these, total count is fetched separately
-      topTenCountEl.textContent = "0";
-      mostActiveTimeEl.textContent = "N/A";
-      avgFrontpageTimeEl.textContent = "N/A";
+      // Don't reset values to zero if they already have values
+      // This prevents flickering during refresh operations
+      if (topTenCountEl.textContent === "0" || topTenCountEl.textContent === "") {
+        topTenCountEl.textContent = "0";
+      }
+      if (mostActiveTimeEl.textContent === "N/A" || mostActiveTimeEl.textContent === "") {
+        mostActiveTimeEl.textContent = "N/A";
+      }
+      if (avgFrontpageTimeEl.textContent === "N/A" || avgFrontpageTimeEl.textContent === "") {
+        avgFrontpageTimeEl.textContent = "N/A";
+      }
       return;
     }
 
