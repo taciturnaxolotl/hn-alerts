@@ -649,6 +649,21 @@ export function createCachedEndpoint<T>(
     const requestStart = isProduction ? 0 : performance.now();
 
     try {
+      // Check client ETag before executing query
+      const clientETag = request.headers.get("if-none-match");
+      const cacheHeaders = createCacheHeaders(cacheKey, ttl);
+
+      // If client ETag matches, return 304
+      if (clientETag && clientETag === cacheHeaders.ETag) {
+        return new Response(null, {
+          status: 304,
+          headers: {
+            ETag: cacheHeaders.ETag,
+            "Cache-Control": cacheHeaders["Cache-Control"] as string,
+          },
+        });
+      }
+
       // Get data from cache or execute query
       const data = await queryCache.get(cacheKey, queryFn, ttl);
 

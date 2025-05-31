@@ -118,8 +118,9 @@ document.addEventListener("DOMContentLoaded", () => {
     window.lastRefreshTime = Date.now();
 
     // Keep a copy of the current stories for metrics calculation during loading
-    const previousStories = allStories && allStories.length > 0 ? [...allStories] : null;
-    
+    const previousStories =
+      allStories && allStories.length > 0 ? [...allStories] : null;
+
     storyList.innerHTML = '<div class="loading">Loading stories...</div>';
 
     // Ensure live counters are running
@@ -255,9 +256,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Apply filters and update UI
   function applyFiltersAndUpdateUI(fallbackStories = null) {
     // Use fallbackStories for metrics if current stories are empty
-    const storiesForMetrics = (!allStories || allStories.length === 0) ? 
-      fallbackStories : allStories;
-    
+    const storiesForMetrics =
+      !allStories || allStories.length === 0 ? fallbackStories : allStories;
+
     if (!allStories || allStories.length === 0) {
       if (!fallbackStories) return;
       // If we have no current stories but have fallback, only update metrics
@@ -563,13 +564,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!stories || stories.length === 0) {
       // Don't reset values to zero if they already have values
       // This prevents flickering during refresh operations
-      if (topTenCountEl.textContent === "0" || topTenCountEl.textContent === "") {
+      if (
+        topTenCountEl.textContent === "0" ||
+        topTenCountEl.textContent === ""
+      ) {
         topTenCountEl.textContent = "0";
       }
-      if (mostActiveTimeEl.textContent === "N/A" || mostActiveTimeEl.textContent === "") {
+      if (
+        mostActiveTimeEl.textContent === "N/A" ||
+        mostActiveTimeEl.textContent === ""
+      ) {
         mostActiveTimeEl.textContent = "N/A";
       }
-      if (avgFrontpageTimeEl.textContent === "N/A" || avgFrontpageTimeEl.textContent === "") {
+      if (
+        avgFrontpageTimeEl.textContent === "N/A" ||
+        avgFrontpageTimeEl.textContent === ""
+      ) {
         avgFrontpageTimeEl.textContent = "N/A";
       }
       return;

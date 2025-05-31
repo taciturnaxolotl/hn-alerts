@@ -147,7 +147,9 @@ const server = Bun.serve({
           let timeOnFrontPage = null;
           if (story.enteredLeaderboardAt) {
             // Use current time as end time if the story is still on the leaderboard
-            const endTime = story.isOnLeaderboard ? Math.floor(Date.now() / 1000) : story.enteredLeaderboardAt + 3600;
+            const endTime = story.isOnLeaderboard
+              ? Math.floor(Date.now() / 1000)
+              : story.enteredLeaderboardAt + 3600;
             timeOnFrontPage = endTime - story.enteredLeaderboardAt;
           }
 
