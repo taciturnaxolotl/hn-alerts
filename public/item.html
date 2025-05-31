@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link
+            rel="icon"
+            type="image/png"
+            href="/public/favicon-96x96.png"
+            sizes="96x96"
+        />
+        <link rel="icon" type="image/svg+xml" href="/public/favicon.svg" />
+        <link rel="shortcut icon" href="/public/favicon.ico" />
+        <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="/public/apple-touch-icon.png"
+        />
+        <meta name="apple-mobile-web-app-title" content="HN Alerts" />
+        <link rel="manifest" href="/public/site.webmanifest" />
+        <meta
+            name="theme-color"
+            content="#ff6600"
+            media="(prefers-color-scheme: light)"
+        />
+        <meta
+            name="theme-color"
+            content="#1a1a1a"
+            media="(prefers-color-scheme: dark)"
+        />
+        <title>HN Story | Hacker News Alerts</title>
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
+        />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+        <style>
+            :root {
+                --bg-color: #ffffff;
+                --bg-secondary: #f5f5f5;
+                --text-color: #212121;
+                --text-secondary: #555;
+                --hn-orange: #ff6600;
+                --hn-orange-hover: #e05d00;
+                --border-color: #ddd;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg-color: #1a1a1a;
+                    --bg-secondary: #2a2a2a;
+                    --text-color: #f0f0f0;
+                    --text-secondary: #aaa;
+                    --border-color: #444;
+                }
+            }
+
+            body {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                background-color: var(--bg-color);
+                color: var(--text-color);
+            }
+
+            .header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .header img {
+                height: 60px;
+            }
+
+            .main-container {
+                display: flex;
+                gap: 2rem;
+            }
+
+            .story-details {
+                flex: 1;
+                margin-top: 1rem;
+            }
+
+            .graph-container {
+                background-color: var(--bg-secondary);
+                border-radius: 16px;
+                padding: 1.5rem;
+                height: 500px;
+                margin: 1.5rem 0;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+                border: 1px solid rgba(59, 130, 246, 0.1);
+                transition: all 0.3s ease;
+            }
+
+            .graph-container:hover {
+                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+                border-color: rgba(59, 130, 246, 0.2);
+            }
+
+            .story-item {
+                background-color: var(--bg-secondary);
+                border-radius: 12px;
+                padding: 1.2rem;
+                margin-bottom: 1.2rem;
+                border-left: 4px solid var(--hn-orange);
+                position: relative;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            }
+
+            .story-item h3 {
+                margin-top: 0;
+                margin-bottom: 0.8rem;
+                font-size: 1.3rem;
+                line-height: 1.3;
+                color: var(--text-color);
+                max-width: 95%;
+            }
+
+            .story-meta {
+                font-size: 0.9rem;
+                color: var(--text-secondary);
+                display: flex;
+                justify-content: space-between;
+                margin-top: 0.8rem;
+                padding-top: 0.8rem;
+                border-top: 1px solid rgba(255, 102, 0, 0.1);
+            }
+
+            .loading {
+                text-align: center;
+                padding: 2.5rem;
+                color: var(--text-secondary);
+                font-style: italic;
+                background-color: var(--bg-secondary);
+                border-radius: 12px;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+                animation: pulse 1.5s infinite ease-in-out;
+            }
+
+            @keyframes pulse {
+                0% {
+                    opacity: 0.6;
+                }
+                50% {
+                    opacity: 1;
+                }
+                100% {
+                    opacity: 0.6;
+                }
+            }
+
+            .stats {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1.5rem;
+                margin: 2rem 0;
+                padding: 1.5rem;
+                background: linear-gradient(
+                    135deg,
+                    rgba(255, 102, 0, 0.08) 0%,
+                    rgba(255, 102, 0, 0.02) 50%,
+                    rgba(255, 102, 0, 0.08) 100%
+                );
+                border-radius: 16px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 102, 0, 0.1);
+                justify-content: center;
+                align-items: center;
+                width: fit-content;
+                max-width: 100%;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .back-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 16px;
+                color: var(--hn-orange);
+                text-decoration: none;
+                font-weight: bold;
+                transition: all 0.2s ease;
+            }
+
+            .back-link:hover {
+                color: var(--hn-orange-hover);
+            }
+
+            .performance-summary {
+                margin-top: 2rem;
+            }
+
+            .section-icon {
+                font-size: 2rem;
+                color: var(--hn-orange);
+                display: inline-block;
+                margin-bottom: 1rem;
+            }
+
+            .performance-metrics-container {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-bottom: 2rem;
+            }
+
+            .performance-metric {
+                background-color: var(--bg-secondary);
+                border-radius: 12px;
+                padding: 1rem;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+                position: relative;
+                overflow: hidden;
+                transition: all 0.3s ease;
+            }
+
+            .performance-metric:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+            }
+
+            .performance-metric::after {
+                content: "";
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 3px;
+                background: linear-gradient(
+                    to right,
+                    var(--hn-orange),
+                    var(--hn-orange-hover)
+                );
+                transform: scaleX(0);
+                transform-origin: bottom right;
+                transition: transform 0.3s ease-out;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                .performance-metric {
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                }
+
+                .performance-metric:hover {
+                    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+                }
+            }
+
+            .metric-label {
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .metric-value {
+                font-size: 1.8rem;
+                font-weight: bold;
+                color: var(--hn-orange);
+                margin-bottom: 0.5rem;
+            }
+
+            .metric-description {
+                font-size: 0.8rem;
+                color: var(--text-secondary);
+            }
+
+            .verified-badge {
+                background-color: var(--hn-orange);
+                color: white;
+                padding: 0.2em 0.5em;
+                border-radius: 4px;
+                font-size: 0.8rem;
+                font-weight: bold;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                margin-left: 0.5rem;
+                vertical-align: middle;
+            }
+
+            .no-graph {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                height: 100%;
+                text-align: center;
+                color: var(--text-secondary);
+            }
+
+            .error-message {
+                color: var(--hn-orange);
+                font-weight: bold;
+                margin-top: 1rem;
+            }
+
+            .link-group {
+                display: flex;
+                gap: 1rem;
+                margin-top: 1rem;
+                flex-wrap: wrap;
+            }
+
+            .external-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                background-color: var(--bg-secondary);
+                color: var(--hn-orange);
+                border: 1px solid var(--hn-orange);
+                border-radius: 8px;
+                padding: 0.5rem 1rem;
+                text-decoration: none;
+                font-weight: bold;
+                transition: all 0.2s ease;
+            }
+
+            .external-link:hover {
+                background-color: var(--hn-orange);
+                color: white;
+            }
+
+            .meta-bar {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .meta-item {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+            }
+
+            @media (max-width: 1240px) {
+                .graph-container {
+                    height: 400px;
+                }
+            }
+
+            @media (max-width: 1015px) {
+                .graph-container {
+                    height: 350px;
+                }
+            }
+
+            @media (max-width: 765px) {
+                .main-container {
+                    flex-direction: column;
+                }
+
+                .graph-container {
+                    max-width: none;
+                }
+
+                .story-details {
+                    max-width: none;
+                }
+            }
+
+            @media (max-width: 540px) {
+                .graph-container {
+                    height: 300px;
+                }
+
+                body {
+                    padding: 1rem;
+                }
+
+                .story-item h3 {
+                    font-size: 1.1rem;
+                }
+
+                .metric-value {
+                    font-size: 1.5rem;
+                }
+
+                .performance-metrics-container {
+                    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                }
+            }
+
+            @media (max-width: 420px) {
+                .graph-container {
+                    height: 240px;
+                }
+
+                .no-graph {
+                    font-size: 1rem;
+                }
+
+                body {
+                    font-size: 0.8rem;
+                    padding: 0.7rem;
+                }
+
+                .story-item {
+                    font-size: 0.9rem;
+                }
+
+                .story-item h3 {
+                    font-size: 1.1rem;
+                }
+
+                .story-meta {
+                    font-size: 0.8rem;
+                }
+
+                .metric-value {
+                    font-size: 1.2rem;
+                }
+
+                .header h1 {
+                    font-size: 1.3rem;
+                }
+
+                .header img {
+                    height: 50px;
+                }
+
+                .performance-metric {
+                    padding: 0.8rem 0.7rem;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div>
+                <h1>Hacker News Story</h1>
+                <p>Performance tracking and statistics</p>
+            </div>
+            <img
+                src="https://cachet.dunkirk.sh/emojis/ycombinator/r"
+                alt="HN Logo"
+            />
+        </div>
+
+        <a href="/" class="back-link">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Dashboard
+        </a>
+
+        <div class="performance-summary">
+            <div id="performance-metrics" class="performance-metrics-container">
+                <!-- Performance metrics will be populated here -->
+                <div class="performance-metric">
+                    <div class="metric-label">Loading...</div>
+                    <div class="metric-value">-</div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-label">Loading...</div>
+                    <div class="metric-value">-</div>
+                </div>
+                <div class="performance-metric">
+                    <div class="metric-label">Loading...</div>
+                    <div class="metric-value">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="story-container" class="story-item">
+            <div class="loading">Loading story data...</div>
+        </div>
+
+        <div class="graph-container" style="max-width: 100%">
+            <div class="no-graph" id="no-graph">
+                <span class="section-icon">📈</span>
+                <p>Loading rank & score history...</p>
+            </div>
+            <canvas id="rank-chart" style="display: none"></canvas>
+        </div>
+
+        <div class="main-container">
+            <div class="story-details" style="max-width: 100%"></div>
+        </div>
+
+        <script>
+            // Get the story ID from the URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const storyId = urlParams.get("id");
+
+            // Cache for snapshot data and ETags
+            const snapshotDataCache = {};
+            const snapshotEtagCache = {};
+
+            // Check if we have a valid story ID
+            if (!storyId) {
+                document.getElementById("no-graph").innerHTML =
+                    '<div class="error-message">No story ID provided. Please use ?id=XXXXX in the URL.</div>';
+                document.getElementById("story-container").innerHTML =
+                    '<div class="error-message">No story ID provided. Please use ?id=XXXXX in the URL.</div>';
+            } else {
+                // Fetch story data
+                fetchStoryData(storyId);
+
+                // Fetch story snapshots for the chart
+                loadStoryGraph(storyId);
+            }
+
+            function fetchStoryData(storyId) {
+                fetch(`/api/story/${storyId}`)
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then((story) => {
+                        displayStoryData(story);
+                        updatePerformanceMetrics(story);
+                    })
+                    .catch((error) => {
+                        console.error("Error fetching story data:", error);
+                        document.getElementById("story-container").innerHTML =
+                            `<div class="error-message">Failed to load story: ${error.message}</div>`;
+                    });
+            }
+
+            function displayStoryData(story) {
+                const container = document.getElementById("story-container");
+
+                // Add monitored user badge if applicable
+                const monitoredBadge = story.isFromMonitoredUser
+                    ? `<span class="verified-badge">TRACKED USER</span>`
+                    : "";
+
+                const html = `
+                    <h3>
+                        <a href="${story.url || `https://news.ycombinator.com/item?id=${story.id}`}" target="_blank" rel="noopener">
+                            ${escapeHTML(story.title)}
+                        </a>
+                    </h3>
+
+                    <div class="meta-bar">
+                        <div class="meta-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            <span>by <strong>${escapeHTML(story.by)}</strong>${monitoredBadge}</span>
+                        </div>
+
+                        ${
+                            story.rank
+                                ? `
+                        <div class="meta-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                            </svg>
+                            <span>Current Rank: <strong>#${story.rank}</strong></span>
+                        </div>
+                        `
+                                : ""
+                        }
+
+                        <div class="meta-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            <span>Current Score: <strong>${story.points}</strong> points</span>
+                        </div>
+
+
+                    </div>
+
+                    <div class="story-meta">
+                        <span>First seen: ${formatDate(story.timestamp || Date.now())}</span>
+                        <span>ID: ${story.id}</span>
+                    </div>
+
+                    <div class="link-group">
+                        <a href="${story.url || `https://news.ycombinator.com/item?id=${story.id}`}" target="_blank" class="external-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            View Original Link
+                        </a>
+                        <a href="https://news.ycombinator.com/item?id=${story.id}" target="_blank" class="external-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                            </svg>
+                            View on HN
+                        </a>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+
+                // Update document title
+                document.title = `${escapeHTML(story.title)} | HN Alerts`;
+            }
+
+            function updatePerformanceMetrics(story) {
+                const container = document.getElementById(
+                    "performance-metrics",
+                );
+
+                const metrics = [
+                    {
+                        label: "Peak Position",
+                        value: story.peakRank ? `#${story.peakRank}` : "N/A",
+                        description: "Best position achieved",
+                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                              </svg>`,
+                    },
+                    {
+                        label: "Peak Points",
+                        value: story.peakPoints || story.points || "N/A",
+                        description: "Maximum points received",
+                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                              </svg>`,
+                    },
+                    {
+                        label: "Time on Front Page",
+                        value: story.timeOnFrontPage
+                            ? formatDuration(story.timeOnFrontPage)
+                            : "N/A",
+                        description: "Total time tracked",
+                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                              </svg>`,
+                    },
+                    {
+                        label: "Comments",
+                        value: story.comments || "N/A",
+                        description: "Discussion count",
+                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                              </svg>`,
+                    },
+                ];
+
+                let html = "";
+                metrics.forEach((metric) => {
+                    html += `
+                        <div class="performance-metric">
+                            ${metric.icon}
+                            <div class="metric-label">${metric.label}</div>
+                            <div class="metric-value">${metric.value}</div>
+                            <div class="metric-description">${metric.description}</div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            }
+
+            // Comment link function removed as we now show comments in metrics
+
+            function loadStoryGraph(storyId) {
+                const noGraph = document.getElementById("no-graph");
+                const rankChart = document.getElementById("rank-chart");
+
+                noGraph.style.display = "flex";
+                rankChart.style.display = "none";
+
+                const options = {
+                    headers: {},
+                };
+
+                // Add If-None-Match header if we have an ETag for this story
+                if (snapshotEtagCache[storyId]) {
+                    options.headers["If-None-Match"] =
+                        snapshotEtagCache[storyId];
+                }
+
+                fetch(`/api/story/${storyId}/snapshots`, options)
+                    .then((response) => {
+                        // Store the new ETag if available
+                        const etag = response.headers.get("ETag");
+                        if (etag) snapshotEtagCache[storyId] = etag;
+
+                        if (!response.ok) {
+                            // Allow 304 Not Modified
+                            if (response.status === 304) {
+                                console.log(
+                                    `Story ${storyId} snapshots not modified, using cached data`,
+                                );
+                                // Use the cached data for this story ID
+                                if (snapshotDataCache[storyId]) {
+                                    return snapshotDataCache[storyId];
+                                }
+                                // If we don't have cached data, re-fetch
+                                throw new Error(
+                                    "Cache miss on 304, re-fetching",
+                                );
+                            }
+                            throw new Error("Failed to fetch snapshot data");
+                        }
+                        return response.json();
+                    })
+                    .then((snapshots) => {
+                        if (!snapshots || snapshots.length === 0) {
+                            noGraph.innerHTML = `
+                                <span class="section-icon">📊</span>
+                                <p>No historical data available for this story yet.</p>
+                            `;
+                            return;
+                        }
+
+                        // Cache the snapshots data for future use
+                        snapshotDataCache[storyId] = snapshots;
+
+                        // Show the chart
+                        noGraph.style.display = "none";
+                        rankChart.style.display = "block";
+
+                        displayGraph(snapshots);
+                    })
+                    .catch((error) => {
+                        console.error("Error fetching snapshots:", error);
+                        noGraph.innerHTML = `
+                            <span class="section-icon">⚠️</span>
+                            <p class="error-message">Error loading graph: ${error.message}</p>
+                        `;
+                    });
+            }
+
+            function displayGraph(snapshots) {
+                // Extract data points
+                const positions = snapshots.map((s) => s.position);
+                const scores = snapshots.map((s) => s.score);
+                const timestamps = snapshots.map(
+                    (s) => new Date(s.timestamp * 1000),
+                );
+
+                // Format labels as times
+                const timeLabels = timestamps.map((ts) => {
+                    const hours = ts.getHours().toString().padStart(2, "0");
+                    const minutes = ts.getMinutes().toString().padStart(2, "0");
+                    return `${hours}:${minutes}`;
+                });
+
+                // Calculate y-axis scaling for position
+                // Lower position numbers (like #1) are better, so we need to invert the scale
+                const maxPosition = Math.max(...positions);
+
+                // Create the chart
+                const ctx = document
+                    .getElementById("rank-chart")
+                    .getContext("2d");
+
+                const chart = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        labels: timeLabels,
+                        datasets: [
+                            {
+                                label: "Position",
+                                data: positions,
+                                borderColor: "rgb(255, 102, 0)",
+                                backgroundColor: "rgba(255, 102, 0, 0.1)",
+                                fill: false,
+                                tension: 0.1,
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
+                                yAxisID: "y-position",
+                            },
+                            {
+                                label: "Score",
+                                data: scores,
+                                borderColor: "rgb(102, 187, 106)",
+                                backgroundColor: "rgba(102, 187, 106, 0.1)",
+                                fill: false,
+                                tension: 0.1,
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
+                                yAxisID: "y-score",
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: "index",
+                            intersect: false,
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: "Time",
+                                },
+                            },
+                            "y-position": {
+                                type: "linear",
+                                display: true,
+                                position: "left",
+                                title: {
+                                    display: true,
+                                    text: "Position (#1 is Best)",
+                                    color: "rgb(255, 102, 0)",
+                                },
+                                reverse: true, // Lower values (#1) at top
+                                min: 1,
+                                max: Math.min(Math.max(...positions) + 2, 30),
+                                ticks: {
+                                    callback: function (value) {
+                                        return "#" + value;
+                                    },
+                                    color: "rgb(255, 102, 0)",
+                                },
+                                grid: {
+                                    color: "rgba(255, 102, 0, 0.1)",
+                                },
+                            },
+                            "y-score": {
+                                type: "linear",
+                                display: true,
+                                position: "right",
+                                title: {
+                                    display: true,
+                                    text: "Points",
+                                    color: "rgb(102, 187, 106)",
+                                },
+                                min: 0,
+                                suggestedMax: Math.max(...scores) * 1.1,
+                                ticks: {
+                                    color: "rgb(102, 187, 106)",
+                                },
+                                grid: {
+                                    drawOnChartArea: false,
+                                    color: "rgba(102, 187, 106, 0.1)",
+                                },
+                            },
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    title: function (tooltipItems) {
+                                        const index = tooltipItems[0].dataIndex;
+                                        return timestamps[
+                                            index
+                                        ].toLocaleString();
+                                    },
+                                    label: function (context) {
+                                        let label = context.dataset.label || "";
+                                        if (label) {
+                                            label += ": ";
+                                        }
+                                        if (label === "Position: ") {
+                                            return label + "#" + context.raw;
+                                        }
+                                        if (label === "Score: ") {
+                                            return (
+                                                label + context.raw + " points"
+                                            );
+                                        }
+                                        return label + context.raw;
+                                    },
+                                },
+                            },
+                            legend: {
+                                position: "top",
+                                labels: {
+                                    usePointStyle: true,
+                                    boxWidth: 10,
+                                    padding: 20,
+                                },
+                            },
+                        },
+                    },
+                });
+            }
+
+            function formatDuration(seconds) {
+                if (!seconds) return "N/A";
+
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+
+                if (hours > 0) {
+                    return `${hours}h ${minutes}m`;
+                } else {
+                    return `${minutes}m`;
+                }
+            }
+
+            function formatDate(timestamp) {
+                const date = new Date(timestamp);
+                return (
+                    date.toLocaleDateString() + " " + date.toLocaleTimeString()
+                );
+            }
+
+            function escapeHTML(str) {
+                if (!str) return "";
+                return str
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+        </script>
+    </body>
+</html>

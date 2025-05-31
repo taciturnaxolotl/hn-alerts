@@ -12,6 +12,7 @@ A Slack bot that tracks when you make it to the front page of Hacker News, made 
 - **#1 Post Alerts**: Special notifications when your post reaches the coveted #1 position
 - **Leaderboard History**: Track how your posts perform over time with rank and point history
 - **Web Dashboard**: View all currently tracked stories and their stats
+- **Individual Story Pages**: View detailed information about any story using HN-compatible URLs
 - **User Verification**: Securely link your HN account with Slack using verification phrases
 
 ## 🚧 Development Setup

@@ -349,6 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span>Detected: ${date}</span>
                 <span class="duration ${durationClass}" title="Time since first detection" data-timestamp="${timestampMs}" data-story-id="${story.id}">${durationEmoji} ${durationText}</span>
                 <span><a href="${story.url}" target="_blank" class="external-link">View Story ↗</a></span>
+                <span><a href="/item?id=${story.id}" class="item-link">View Stats</a></span>
             </div>
         </div>
       `;
@@ -374,7 +375,9 @@ document.addEventListener("DOMContentLoaded", () => {
         // Prevent triggering when clicking links
         if (
           e.target.classList.contains("external-link") ||
-          e.target.closest(".external-link")
+          e.target.closest(".external-link") ||
+          e.target.classList.contains("item-link") ||
+          e.target.closest(".item-link")
         ) {
           return;
         }

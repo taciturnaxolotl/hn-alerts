@@ -12,6 +12,7 @@ import {
 } from "./libs/cache";
 import { handleCORS } from "./libs/cors";
 import root from "../public/index.html";
+import item from "../public/item.html";
 import { count } from "drizzle-orm";
 import { stories } from "./libs/schema";
 
@@ -95,7 +96,111 @@ const server = Bun.serve({
   maxRequestBodySize: 1024 * 1024,
   routes: {
     "/": root,
+    "/item": item,
     // Apply CORS to all API routes
+    "/api/story/:id": handleCORS(async (req) => {
+      try {
+        // Extract the story ID from the URL path
+        const url = new URL(req.url);
+        const pathParts = url.pathname.split("/");
+        const storyIdStr = pathParts[3]; // Get ID from path parts
+        const storyId = storyIdStr
+          ? Number.parseInt(storyIdStr, 10)
+          : Number.NaN;
+
+        if (Number.isNaN(storyId) || storyId <= 0) {
+          return new Response(JSON.stringify({ error: "Invalid story ID" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // Create a cache key for the story
+        const cacheKey = `story_${storyId}`;
+
+        // Function to fetch the story data
+        const queryFn = async () => {
+          const story = await db.query.stories.findFirst({
+            columns: {
+              id: true,
+              title: true,
+              url: true,
+              position: true,
+              peakPosition: true,
+              score: true,
+              peakScore: true,
+              descendants: true,
+              by: true,
+              enteredLeaderboardAt: true,
+              firstSeenAt: true,
+              lastSeenOnLeaderboardAt: true,
+              isFromMonitoredUser: true,
+            },
+            where: (stories, { eq }) => eq(stories.id, storyId),
+          });
+
+          if (!story) {
+            return null;
+          }
+
+          // Calculate time on front page if available
+          let timeOnFrontPage = null;
+          if (story.enteredLeaderboardAt && story.lastSeenOnLeaderboardAt) {
+            timeOnFrontPage =
+              story.lastSeenOnLeaderboardAt - story.enteredLeaderboardAt;
+          }
+
+          // Format the response
+          return {
+            id: story.id,
+            title: story.title,
+            url:
+              story.url || `https://news.ycombinator.com/item?id=${story.id}`,
+            rank: story.position,
+            peakRank: story.peakPosition,
+            points: story.score,
+            peakPoints: story.peakScore,
+            comments: story.descendants,
+            timestamp: (story.enteredLeaderboardAt || story.firstSeenAt) * 1000,
+            by: story.by,
+            isFromMonitoredUser: story.isFromMonitoredUser,
+            timeOnFrontPage: timeOnFrontPage,
+          };
+        };
+
+        // Register this dynamic query for potential cache warming
+        queryCache.register(cacheKey, queryFn, 600);
+
+        // Execute the query with caching
+        const data = await queryCache.get(cacheKey, queryFn, 600);
+
+        if (!data) {
+          return new Response(JSON.stringify({ error: "Story not found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // Create response with cached headers
+        const headers = createCacheHeaders(cacheKey, 600);
+        const response = new Response(JSON.stringify(data), { headers });
+
+        return compressResponse(req, response);
+      } catch (error) {
+        if (!isProduction) {
+          console.error("Failed to fetch story:", error);
+        }
+        Sentry.captureException(error);
+
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch story" }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+    }),
     "/api/stories": handleCORS(
       createCachedEndpoint(
         "leaderboard_stories",
