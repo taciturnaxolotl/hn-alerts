@@ -25,7 +25,7 @@ import {
 } from "../../libs/hackernews";
 import { addDays } from "../../libs/time";
 import type { AnyMessageBlock } from "slack-edge";
-import { sqlite } from "../../libs/db";
+import { optimizeLeaderboardSnapshots, sqlite } from "../../libs/db";
 
 // Constants
 const TOP_STORIES_LIMIT = 30; // Front page is considered the top 30 stories
@@ -699,6 +699,12 @@ async function cleanupExpiredStories() {
         .delete(leaderboardSnapshots)
         .where(lt(leaderboardSnapshots.expiresAt, currentTime));
     }
+
+    // Optimize leaderboard snapshots by removing redundant ones with batching
+    // Use a batch size of 100 for better performance without overwhelming the database
+    // Use conservative mode (true) to ensure we don't remove important data during sharp changes
+    const { optimizeLeaderboardSnapshots } = await import("../../libs/db");
+    await optimizeLeaderboardSnapshots(100, true);
   } catch (error) {
     console.error("Error cleaning up expired data:", error);
     Sentry.captureException(error);
