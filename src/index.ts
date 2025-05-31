@@ -133,7 +133,7 @@ const server = Bun.serve({
               by: true,
               enteredLeaderboardAt: true,
               firstSeenAt: true,
-              lastSeenOnLeaderboardAt: true,
+              isOnLeaderboard: true,
               isFromMonitoredUser: true,
             },
             where: (stories, { eq }) => eq(stories.id, storyId),
@@ -145,9 +145,10 @@ const server = Bun.serve({
 
           // Calculate time on front page if available
           let timeOnFrontPage = null;
-          if (story.enteredLeaderboardAt && story.lastSeenOnLeaderboardAt) {
-            timeOnFrontPage =
-              story.lastSeenOnLeaderboardAt - story.enteredLeaderboardAt;
+          if (story.enteredLeaderboardAt) {
+            // Use current time as end time if the story is still on the leaderboard
+            const endTime = story.isOnLeaderboard ? Math.floor(Date.now() / 1000) : story.enteredLeaderboardAt + 3600;
+            timeOnFrontPage = endTime - story.enteredLeaderboardAt;
           }
 
           // Format the response
@@ -332,7 +333,7 @@ const server = Bun.serve({
 
     "/api/story/:id/snapshots": handleCORS(async (req) => {
       try {
-        // Extract the story ID from the URL path using faster string operations
+        // Extract the story ID from the URL path
         const url = new URL(req.url);
         const pathParts = url.pathname.split("/");
         const storyIdStr = pathParts[3]; // Get ID from path parts directly
