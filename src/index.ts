@@ -174,6 +174,9 @@ const server = Bun.serve({
         // Register this dynamic query for potential cache warming
         queryCache.register(cacheKey, queryFn, 600);
 
+        // Check client ETag before executing query
+        const clientETag = req.headers.get("if-none-match");
+
         // Execute the query with caching
         const data = await queryCache.get(cacheKey, queryFn, 600);
 
@@ -184,10 +187,21 @@ const server = Bun.serve({
           });
         }
 
-        // Create response with cached headers
-        const headers = createCacheHeaders(cacheKey, 600);
-        const response = new Response(JSON.stringify(data), { headers });
+        // Create response with cached headers based on actual data content
+        const headers = createCacheHeaders(cacheKey, 600, data);
 
+        // Return 304 if client's ETag matches our data-based ETag
+        if (clientETag && clientETag === headers.ETag) {
+          return new Response(null, {
+            status: 304,
+            headers: {
+              ETag: headers.ETag,
+              "Cache-Control": headers["Cache-Control"] as string,
+            },
+          });
+        }
+
+        const response = new Response(JSON.stringify(data), { headers });
         return compressResponse(req, response);
       } catch (error) {
         if (!isProduction) {
@@ -393,8 +407,22 @@ const server = Bun.serve({
         // Execute the query with caching
         const data = await queryCache.get(cacheKey, queryFn, 3600);
 
-        // Use cached headers for better performance
-        const headers = createCacheHeaders(cacheKey, 3600);
+        // Check client ETag before sending response
+        const clientETag = req.headers.get("if-none-match");
+
+        // Create response with cached headers based on actual data
+        const headers = createCacheHeaders(cacheKey, 3600, data);
+
+        // Return 304 if client's ETag matches our data-based ETag
+        if (clientETag && clientETag === headers.ETag) {
+          return new Response(null, {
+            status: 304,
+            headers: {
+              ETag: headers.ETag,
+              "Cache-Control": headers["Cache-Control"] as string,
+            },
+          });
+        }
 
         // Create response with optimized headers
         const response = new Response(JSON.stringify(data), { headers });

@@ -98,19 +98,25 @@ document.addEventListener("DOMContentLoaded", () => {
   let allStories = []; // Store all stories for filtering
   let showVerifiedOnly = false; // Default to showing all stories
 
-  // Cache for ETags and data to support conditional requests
-  const etagCache = {
+  // Cache for ETags and data to support conditional requests with sessionStorage persistence
+  const etagCache = JSON.parse(sessionStorage.getItem('etagCache') || JSON.stringify({
     stories: null,
     totalStories: null,
     verifiedUsers: null,
-  };
+  }));
 
   // Cache for actual response data
-  const responseCache = {
+  const responseCache = JSON.parse(sessionStorage.getItem('responseCache') || JSON.stringify({
     stories: null,
     totalStories: null,
     verifiedUsers: null,
-  };
+  }));
+
+  // Helper function to persist cache state
+  function persistCaches() {
+    sessionStorage.setItem('etagCache', JSON.stringify(etagCache));
+    sessionStorage.setItem('responseCache', JSON.stringify(responseCache));
+  }
 
   // Fetch stories data
   function fetchStories() {
@@ -142,12 +148,15 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((response) => {
         // Store the new ETag if available
         const etag = response.headers.get("ETag");
-        if (etag) etagCache.totalStories = etag;
+        if (etag) {
+          etagCache.totalStories = etag;
+          persistCaches();
+        }
 
         // If 304 Not Modified, use cached data
         if (response.status === 304) {
           console.log("Total stories not modified, using cached data");
-          return responseCache.totalStories; // Use cached data
+          return Promise.resolve(responseCache.totalStories); // Use cached data
         }
 
         return response.json();
@@ -156,6 +165,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data) {
           // Store in cache for future 304 responses
           responseCache.totalStories = data;
+          persistCaches();
 
           if (typeof data.count !== "undefined") {
             totalStoriesCount = data.count;
@@ -177,16 +187,24 @@ document.addEventListener("DOMContentLoaded", () => {
       verifiedUsersOptions.headers["If-None-Match"] = etagCache.verifiedUsers;
     }
 
+    // Add Accept-Encoding header if browser supports it
+    if ('Accept-Encoding' in navigator) {
+      verifiedUsersOptions.headers["Accept-Encoding"] = "gzip, deflate, br";
+    }
+
     fetch("/api/stats/verified-users", verifiedUsersOptions)
       .then((response) => {
         // Store the new ETag if available
         const etag = response.headers.get("ETag");
-        if (etag) etagCache.verifiedUsers = etag;
+        if (etag) {
+          etagCache.verifiedUsers = etag;
+          persistCaches();
+        }
 
         // If 304 Not Modified, use cached data
         if (response.status === 304) {
-          console.log("Verified users stats not modified, using cached data");
-          return responseCache.verifiedUsers; // Use cached data
+          console.log("Verified users not modified, using cached data");
+          return Promise.resolve(responseCache.verifiedUsers); // Use cached data
         }
 
         return response.json();
@@ -195,6 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data) {
           // Store in cache for future 304 responses
           responseCache.verifiedUsers = data;
+          persistCaches();
 
           verifiedUserStats = data;
           updateTopStats(data); // Update UI with the new stats
@@ -214,17 +233,25 @@ document.addEventListener("DOMContentLoaded", () => {
       storiesOptions.headers["If-None-Match"] = etagCache.stories;
     }
 
+    // Add Accept-Encoding header if browser supports it
+    if ('Accept-Encoding' in navigator) {
+      storiesOptions.headers["Accept-Encoding"] = "gzip, deflate, br";
+    }
+
     fetch("/api/stories", storiesOptions)
       .then((response) => {
         // Store the new ETag if available
         const etag = response.headers.get("ETag");
-        if (etag) etagCache.stories = etag;
+        if (etag) {
+          etagCache.stories = etag;
+          persistCaches();
+        }
 
         if (!response.ok) {
           // Allow 304 Not Modified
           if (response.status === 304) {
             console.log("Stories not modified, using cached data");
-            return responseCache.stories; // Use cached data
+            return Promise.resolve(responseCache.stories); // Use cached data
           }
           throw new Error("Network response was not ok");
         }
@@ -234,6 +261,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data) {
           // Store in cache for future 304 responses
           responseCache.stories = data;
+          persistCaches();
 
           // Store all stories for filtering
           allStories = data;

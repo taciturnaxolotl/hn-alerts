@@ -13,10 +13,20 @@ const isProduction = process.env.NODE_ENV === "production";
 export function createCacheHeaders(
   key: string,
   maxAge = 300,
+  data?: unknown,
 ): Record<string, string> {
-  // Generate stable ETag based on version and cache key
-  // Only changes when version changes or when cache TTL expires (divided by TTL)
-  const etag = `"${version}-${key}-${Math.floor(Date.now() / (maxAge * 1000))}"`;
+  // Generate stable ETag based on version, cache key, and data hash if available
+  let etag: string;
+  
+  if (data) {
+    // Generate based on actual data content for stronger validation
+    const dataStr = JSON.stringify(data);
+    const dataHash = Bun.hash(dataStr).toString(36).slice(0, 12);
+    etag = `"${version}-${key}-${dataHash}"`;
+  } else {
+    // Fallback to time-based for headers without data
+    etag = `"${version}-${key}-${Math.floor(Date.now() / (maxAge * 1000))}"`;
+  }
 
   return {
     "Content-Type": "application/json",
@@ -628,9 +638,6 @@ export function createCachedEndpoint<T>(
   const defaultToPriority = cacheKey === "leaderboard_stories" || isPriority;
   queryCache.register(cacheKey, queryFn, ttl, defaultToPriority);
 
-  // Pre-create cache headers to avoid recreating them on each request
-  const cacheHeaders = createCacheHeaders(cacheKey, ttl);
-
   // Prepare common response headers
   const errorHeaders = {
     "Content-Type": "application/json",
@@ -649,26 +656,25 @@ export function createCachedEndpoint<T>(
     const requestStart = isProduction ? 0 : performance.now();
 
     try {
-      // Check client ETag before executing query
+      // Get data from cache or execute query first
+      const data = await queryCache.get(cacheKey, queryFn, ttl);
+      
+      // Generate data-based ETag for better validation
+      const headers = createCacheHeaders(cacheKey, ttl, data);
+      
+      // Check client ETag after we have our data
       const clientETag = request.headers.get("if-none-match");
-      const cacheHeaders = createCacheHeaders(cacheKey, ttl);
-
-      // If client ETag matches, return 304
-      if (clientETag && clientETag === cacheHeaders.ETag) {
+      
+      // Return 304 if client's ETag matches our data-based ETag
+      if (clientETag && clientETag === headers.ETag) {
         return new Response(null, {
           status: 304,
           headers: {
-            ETag: cacheHeaders.ETag,
-            "Cache-Control": cacheHeaders["Cache-Control"] as string,
+            ETag: headers.ETag,
+            "Cache-Control": headers["Cache-Control"] as string,
           },
         });
       }
-
-      // Get data from cache or execute query
-      const data = await queryCache.get(cacheKey, queryFn, ttl);
-
-      // Create response with proper caching headers and timing info
-      const headers = { ...cacheHeaders };
 
       // Add server timing header in development
       if (!isProduction && requestStart > 0) {

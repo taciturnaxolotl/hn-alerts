@@ -505,9 +505,23 @@
             const urlParams = new URLSearchParams(window.location.search);
             const storyId = urlParams.get("id");
 
-            // Cache for snapshot data and ETags
-            const snapshotDataCache = {};
-            const snapshotEtagCache = {};
+            // Cache for snapshot data and ETags with localStorage persistence
+            const snapshotDataCache = JSON.parse(localStorage.getItem('snapshotDataCache') || '{}');
+            const snapshotEtagCache = JSON.parse(localStorage.getItem('snapshotEtagCache') || '{}');
+            
+            // Helper functions for ETag management
+            const etagManager = {
+                save: () => {
+                    localStorage.setItem('snapshotEtagCache', JSON.stringify(snapshotEtagCache));
+                    localStorage.setItem('snapshotDataCache', JSON.stringify(snapshotDataCache));
+                },
+                clear: () => {
+                    localStorage.removeItem('snapshotEtagCache');
+                    localStorage.removeItem('snapshotDataCache');
+                    Object.keys(snapshotDataCache).forEach(key => delete snapshotDataCache[key]);
+                    Object.keys(snapshotEtagCache).forEach(key => delete snapshotEtagCache[key]);
+                }
+            };
 
             // Check if we have a valid story ID
             if (!storyId) {
@@ -524,12 +538,41 @@
             }
 
             function fetchStoryData(storyId) {
-                fetch(`/api/story/${storyId}`)
+                const options = {
+                    headers: {}
+                };
+                
+                // Add If-None-Match header if we have an ETag for this story
+                const storyKey = `story_${storyId}`;
+                if (snapshotEtagCache[storyKey]) {
+                    options.headers["If-None-Match"] = snapshotEtagCache[storyKey];
+                }
+                
+                fetch(`/api/story/${storyId}`, options)
                     .then((response) => {
+                        // Store the new ETag if available
+                        const etag = response.headers.get("ETag");
+                        if (etag) {
+                            snapshotEtagCache[storyKey] = etag;
+                            etagManager.save();
+                        }
+                        
+                        // If 304 Not Modified, use cached data
+                        if (response.status === 304) {
+                            console.log("Story not modified, using cached data");
+                            return snapshotDataCache[storyKey];
+                        }
+                        
                         if (!response.ok) {
                             throw new Error(`HTTP error ${response.status}`);
                         }
-                        return response.json();
+                        
+                        return response.json().then(data => {
+                            // Cache the data
+                            snapshotDataCache[storyKey] = data;
+                            etagManager.save();
+                            return data;
+                        });
                     })
                     .then((story) => {
                         displayStoryData(story);
@@ -689,28 +732,33 @@
                     headers: {},
                 };
 
-                // Add If-None-Match header if we have an ETag for this story
-                if (snapshotEtagCache[storyId]) {
-                    options.headers["If-None-Match"] =
-                        snapshotEtagCache[storyId];
+                // Create snapshot-specific cache key
+                const snapshotKey = `snapshots_${storyId}`;
+                
+                // Add If-None-Match header if we have an ETag for this story's snapshots
+                if (snapshotEtagCache[snapshotKey]) {
+                    options.headers["If-None-Match"] = snapshotEtagCache[snapshotKey];
                 }
 
                 fetch(`/api/story/${storyId}/snapshots`, options)
                     .then((response) => {
                         // Store the new ETag if available
                         const etag = response.headers.get("ETag");
-                        if (etag) snapshotEtagCache[storyId] = etag;
+                        if (etag) {
+                            snapshotEtagCache[snapshotKey] = etag;
+                            etagManager.save();
+                        }
 
                         if (!response.ok) {
-                            // Allow 304 Not Modified
-                            if (response.status === 304) {
+                            // Handle 304 Not Modified - use cached data
+                            if (response.status === 304 && snapshotDataCache[snapshotKey]) {
                                 console.log(
                                     `Story ${storyId} snapshots not modified, using cached data`,
                                 );
                                 // Use the cached data for this story ID
-                                if (snapshotDataCache[storyId]) {
-                                    return snapshotDataCache[storyId];
-                                }
+                                        if (snapshotDataCache[snapshotKey]) {
+                                            return snapshotDataCache[snapshotKey];
+                                        }
                                 // If we don't have cached data, re-fetch
                                 throw new Error(
                                     "Cache miss on 304, re-fetching",
@@ -730,7 +778,8 @@
                         }
 
                         // Cache the snapshots data for future use
-                        snapshotDataCache[storyId] = snapshots;
+                        snapshotDataCache[snapshotKey] = snapshots;
+                        etagManager.save();
 
                         // Show the chart
                         noGraph.style.display = "none";
