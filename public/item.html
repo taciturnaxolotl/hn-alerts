@@ -84,14 +84,17 @@
             }
 
             .graph-container {
+                flex: 1;
+                flex-basis: inherit;
                 background-color: var(--bg-secondary);
                 border-radius: 16px;
                 padding: 1.5rem;
                 height: 500px;
-                margin: 1.5rem 0;
+                top: 1rem;
                 box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
                 border: 1px solid rgba(59, 130, 246, 0.1);
                 transition: all 0.3s ease;
+                max-width: 600px;
             }
 
             .graph-container:hover {
@@ -107,6 +110,12 @@
                 border-left: 4px solid var(--hn-orange);
                 position: relative;
                 box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+                transition: all 0.3s ease;
+            }
+
+            .story-item:hover {
+                transform: translateX(6px);
+                box-shadow: 0 6px 15px rgba(255, 102, 0, 0.15);
             }
 
             .story-item h3 {
@@ -116,6 +125,19 @@
                 line-height: 1.3;
                 color: var(--text-color);
                 max-width: 95%;
+            }
+
+            .story-item h3 a {
+                color: var(--hn-orange);
+                text-decoration: none;
+                transition: all 0.3s ease;
+                position: relative;
+            }
+
+            .story-item h3 a:hover {
+                text-decoration: underline;
+                text-shadow: 0 2px 4px rgba(255, 102, 0, 0.3);
+                filter: drop-shadow(0 0 8px rgba(255, 102, 0, 0.6));
             }
 
             .story-meta {
@@ -176,56 +198,125 @@
                 margin-right: auto;
             }
 
+            @media (prefers-color-scheme: dark) {
+                .stats {
+                    background: linear-gradient(
+                        135deg,
+                        rgba(255, 102, 0, 0.12) 0%,
+                        rgba(255, 102, 0, 0.05) 50%,
+                        rgba(255, 102, 0, 0.12) 100%
+                    );
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                }
+            }
+
             .back-link {
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
                 margin-bottom: 16px;
-                color: var(--hn-orange);
+                background: linear-gradient(
+                    135deg,
+                    var(--hn-orange),
+                    var(--hn-orange-hover)
+                );
+                color: white;
                 text-decoration: none;
-                font-weight: bold;
-                transition: all 0.2s ease;
+                font-weight: 600;
+                padding: 0.8rem 1.5rem;
+                border-radius: 12px;
+                box-shadow: 0 4px 12px rgba(255, 102, 0, 0.25);
+                transition: all 0.3s ease;
+                letter-spacing: 0.02em;
             }
 
             .back-link:hover {
-                color: var(--hn-orange-hover);
+                background: linear-gradient(
+                    135deg,
+                    var(--hn-orange-hover),
+                    var(--hn-orange)
+                );
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(255, 102, 0, 0.35);
             }
 
             .performance-summary {
-                margin-top: 2rem;
+                margin-bottom: 2rem;
+            }
+
+            .stat-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+                background: linear-gradient(
+                    135deg,
+                    rgba(255, 102, 0, 0.2),
+                    rgba(255, 102, 0, 0.1)
+                );
+                width: 50px;
+                height: 50px;
+                line-height: 50px;
+                border-radius: 50%;
+                display: inline-block;
+                position: relative;
+                z-index: 1;
+                box-shadow: 0 4px 10px rgba(255, 102, 0, 0.1);
             }
 
             .section-icon {
-                font-size: 2rem;
-                color: var(--hn-orange);
                 display: inline-block;
-                margin-bottom: 1rem;
+                margin-right: 0.5rem;
+                animation: float 3s ease-in-out infinite;
+            }
+
+            @keyframes float {
+                0% {
+                    transform: translateY(0);
+                }
+                50% {
+                    transform: translateY(-5px);
+                }
+                100% {
+                    transform: translateY(0);
+                }
             }
 
             .performance-metrics-container {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 1rem;
-                margin-bottom: 2rem;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 1.5rem;
+                padding: 0.5rem 0;
             }
 
             .performance-metric {
                 background-color: var(--bg-secondary);
-                border-radius: 12px;
-                padding: 1rem;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
+                border-radius: 16px;
+                padding: 1.8rem 1.5rem;
                 text-align: center;
-                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+                transition: all 0.3s ease;
+                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
                 position: relative;
                 overflow: hidden;
-                transition: all 0.3s ease;
+                border: 1px solid rgba(59, 130, 246, 0.1);
+                animation: fadeIn 0.8s ease-out forwards;
+                animation-delay: calc(var(--i, 0) * 0.1s);
+                opacity: 0;
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(15px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
             }
 
             .performance-metric:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+                transform: translateY(-8px);
+                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+                border-color: rgba(59, 130, 246, 0.3);
             }
 
             .performance-metric::after {
@@ -234,73 +325,120 @@
                 bottom: 0;
                 left: 0;
                 width: 100%;
-                height: 3px;
-                background: linear-gradient(
-                    to right,
-                    var(--hn-orange),
-                    var(--hn-orange-hover)
-                );
-                transform: scaleX(0);
-                transform-origin: bottom right;
-                transition: transform 0.3s ease-out;
+                height: 5px;
+                background: linear-gradient(90deg, #3b82f6, #60a5fa);
             }
 
             @media (prefers-color-scheme: dark) {
                 .performance-metric {
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+                    border: 1px solid rgba(59, 130, 246, 0.15);
                 }
 
                 .performance-metric:hover {
-                    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+                    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+                    border-color: rgba(59, 130, 246, 0.4);
                 }
             }
 
             .metric-label {
-                color: var(--text-secondary);
-                font-size: 0.9rem;
-                margin-bottom: 0.5rem;
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: #3b82f6;
+                margin-bottom: 0.8rem;
+                letter-spacing: 0.03em;
             }
 
             .metric-value {
-                font-size: 1.8rem;
+                font-size: 2rem;
                 font-weight: bold;
-                color: var(--hn-orange);
-                margin-bottom: 0.5rem;
+                margin: 0.8rem 0;
+                background: linear-gradient(135deg, #3b82f6, #60a5fa);
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
+                animation: numberCountUp 1.5s ease-out forwards;
+            }
+
+            @keyframes numberCountUp {
+                from {
+                    opacity: 0;
+                    transform: scale(0.8);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
             }
 
             .metric-description {
-                font-size: 0.8rem;
+                font-size: 0.9rem;
                 color: var(--text-secondary);
+                margin-top: 0.5rem;
+                font-style: italic;
             }
 
             .verified-badge {
-                background-color: var(--hn-orange);
+                position: absolute;
+                top: 0.8rem;
+                right: 0.8rem;
+                background: linear-gradient(135deg, #4caf50, #2e7d32);
                 color: white;
-                padding: 0.2em 0.5em;
-                border-radius: 4px;
-                font-size: 0.8rem;
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+                border-radius: 8px;
                 font-weight: bold;
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-                margin-left: 0.5rem;
-                vertical-align: middle;
+                box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
+                animation: badgePulse 2s infinite alternate;
+                z-index: 2;
+            }
+
+            @keyframes badgePulse {
+                from {
+                    box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
+                }
+                to {
+                    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.5);
+                }
             }
 
             .no-graph {
                 display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
                 height: 100%;
-                text-align: center;
+                align-items: center;
+                justify-content: center;
                 color: var(--text-secondary);
+                text-align: center;
+                font-size: 1.1rem;
+                line-height: 1.6;
+                background: linear-gradient(
+                    135deg,
+                    rgba(59, 130, 246, 0.03),
+                    rgba(59, 130, 246, 0.08)
+                );
+                border-radius: 16px;
+                flex-direction: column;
+                margin: 2rem;
+            }
+
+            .no-graph .error-message {
+                color: #e74c3c;
+                margin-top: 1rem;
+                padding: 0.75rem 1rem;
+                background-color: rgba(231, 76, 60, 0.1);
+                border-radius: 8px;
+                max-width: 90%;
+                font-size: 0.9rem;
             }
 
             .error-message {
-                color: var(--hn-orange);
+                color: #e74c3c;
                 font-weight: bold;
                 margin-top: 1rem;
+                padding: 0.75rem 1rem;
+                background-color: rgba(231, 76, 60, 0.1);
+                border-radius: 8px;
+                border-left: 4px solid #e74c3c;
             }
 
             .link-group {
@@ -314,26 +452,43 @@
                 display: inline-flex;
                 align-items: center;
                 gap: 6px;
-                background-color: var(--bg-secondary);
-                color: var(--hn-orange);
-                border: 1px solid var(--hn-orange);
-                border-radius: 8px;
-                padding: 0.5rem 1rem;
+                background: linear-gradient(
+                    135deg,
+                    rgba(59, 130, 246, 0.1),
+                    rgba(59, 130, 246, 0.05)
+                );
+                color: #3b82f6;
+                border: 2px solid rgba(59, 130, 246, 0.2);
+                border-radius: 12px;
+                padding: 0.8rem 1.2rem;
                 text-decoration: none;
-                font-weight: bold;
-                transition: all 0.2s ease;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 10px rgba(59, 130, 246, 0.1);
+                letter-spacing: 0.02em;
             }
 
             .external-link:hover {
-                background-color: var(--hn-orange);
+                background: linear-gradient(135deg, #3b82f6, #60a5fa);
                 color: white;
+                transform: translateY(-3px);
+                box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25);
+                border-color: #3b82f6;
             }
 
             .meta-bar {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 1rem;
-                margin-bottom: 1rem;
+                gap: 1.5rem;
+                margin-bottom: 1.5rem;
+                padding: 1rem;
+                background: linear-gradient(
+                    135deg,
+                    rgba(255, 102, 0, 0.05),
+                    rgba(255, 102, 0, 0.02)
+                );
+                border-radius: 12px;
+                border: 1px solid rgba(255, 102, 0, 0.1);
             }
 
             .meta-item {
@@ -342,17 +497,38 @@
                 gap: 0.5rem;
                 color: var(--text-secondary);
                 font-size: 0.9rem;
+                font-weight: 500;
+                padding: 0.5rem 0.8rem;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+            }
+
+            .meta-item svg {
+                flex-shrink: 0;
+            }
+
+            .meta-item strong {
+                color: var(--hn-orange);
+                font-weight: 700;
             }
 
             @media (max-width: 1240px) {
                 .graph-container {
-                    height: 400px;
+                    max-width: 500px;
+                }
+
+                .story-details {
+                    max-width: 100%;
                 }
             }
 
             @media (max-width: 1015px) {
                 .graph-container {
-                    height: 350px;
+                    max-width: 400px;
+                }
+
+                .story-details {
+                    max-width: 100%;
                 }
             }
 
@@ -362,11 +538,11 @@
                 }
 
                 .graph-container {
-                    max-width: none;
+                    max-width: 100%;
                 }
 
                 .story-details {
-                    max-width: none;
+                    max-width: 100%;
                 }
             }
 
@@ -376,19 +552,19 @@
                 }
 
                 body {
-                    padding: 1rem;
+                    font-size: 0.8rem;
                 }
 
                 .story-item h3 {
-                    font-size: 1.1rem;
+                    font-size: 1rem;
                 }
 
                 .metric-value {
-                    font-size: 1.5rem;
+                    font-size: 1.6rem;
                 }
 
                 .performance-metrics-container {
-                    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
                 }
             }
 
@@ -469,15 +645,15 @@
         <div class="performance-summary">
             <div id="performance-metrics" class="performance-metrics-container">
                 <!-- Performance metrics will be populated here -->
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 1">
                     <div class="metric-label">Loading...</div>
                     <div class="metric-value">-</div>
                 </div>
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 2">
                     <div class="metric-label">Loading...</div>
                     <div class="metric-value">-</div>
                 </div>
-                <div class="performance-metric">
+                <div class="performance-metric" style="--i: 3">
                     <div class="metric-label">Loading...</div>
                     <div class="metric-value">-</div>
                 </div>
@@ -506,21 +682,35 @@
             const storyId = urlParams.get("id");
 
             // Cache for snapshot data and ETags with localStorage persistence
-            const snapshotDataCache = JSON.parse(localStorage.getItem('snapshotDataCache') || '{}');
-            const snapshotEtagCache = JSON.parse(localStorage.getItem('snapshotEtagCache') || '{}');
-            
+            const snapshotDataCache = JSON.parse(
+                localStorage.getItem("snapshotDataCache") || "{}",
+            );
+            const snapshotEtagCache = JSON.parse(
+                localStorage.getItem("snapshotEtagCache") || "{}",
+            );
+
             // Helper functions for ETag management
             const etagManager = {
                 save: () => {
-                    localStorage.setItem('snapshotEtagCache', JSON.stringify(snapshotEtagCache));
-                    localStorage.setItem('snapshotDataCache', JSON.stringify(snapshotDataCache));
+                    localStorage.setItem(
+                        "snapshotEtagCache",
+                        JSON.stringify(snapshotEtagCache),
+                    );
+                    localStorage.setItem(
+                        "snapshotDataCache",
+                        JSON.stringify(snapshotDataCache),
+                    );
                 },
                 clear: () => {
-                    localStorage.removeItem('snapshotEtagCache');
-                    localStorage.removeItem('snapshotDataCache');
-                    Object.keys(snapshotDataCache).forEach(key => delete snapshotDataCache[key]);
-                    Object.keys(snapshotEtagCache).forEach(key => delete snapshotEtagCache[key]);
-                }
+                    localStorage.removeItem("snapshotEtagCache");
+                    localStorage.removeItem("snapshotDataCache");
+                    Object.keys(snapshotDataCache).forEach(
+                        (key) => delete snapshotDataCache[key],
+                    );
+                    Object.keys(snapshotEtagCache).forEach(
+                        (key) => delete snapshotEtagCache[key],
+                    );
+                },
             };
 
             // Check if we have a valid story ID
@@ -539,15 +729,16 @@
 
             function fetchStoryData(storyId) {
                 const options = {
-                    headers: {}
+                    headers: {},
                 };
-                
+
                 // Add If-None-Match header if we have an ETag for this story
                 const storyKey = `story_${storyId}`;
                 if (snapshotEtagCache[storyKey]) {
-                    options.headers["If-None-Match"] = snapshotEtagCache[storyKey];
+                    options.headers["If-None-Match"] =
+                        snapshotEtagCache[storyKey];
                 }
-                
+
                 fetch(`/api/story/${storyId}`, options)
                     .then((response) => {
                         // Store the new ETag if available
@@ -556,18 +747,20 @@
                             snapshotEtagCache[storyKey] = etag;
                             etagManager.save();
                         }
-                        
+
                         // If 304 Not Modified, use cached data
                         if (response.status === 304) {
-                            console.log("Story not modified, using cached data");
+                            console.log(
+                                "Story not modified, using cached data",
+                            );
                             return snapshotDataCache[storyKey];
                         }
-                        
+
                         if (!response.ok) {
                             throw new Error(`HTTP error ${response.status}`);
                         }
-                        
-                        return response.json().then(data => {
+
+                        return response.json().then((data) => {
                             // Cache the data
                             snapshotDataCache[storyKey] = data;
                             etagManager.save();
@@ -629,7 +822,6 @@
                             <span>Current Score: <strong>${story.points}</strong> points</span>
                         </div>
 
-
                     </div>
 
                     <div class="story-meta">
@@ -671,17 +863,13 @@
                         label: "Peak Position",
                         value: story.peakRank ? `#${story.peakRank}` : "N/A",
                         description: "Best position achieved",
-                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                              </svg>`,
+                        i: 1,
                     },
                     {
                         label: "Peak Points",
                         value: story.peakPoints || story.points || "N/A",
                         description: "Maximum points received",
-                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                              </svg>`,
+                        i: 2,
                     },
                     {
                         label: "Time on Front Page",
@@ -689,26 +877,20 @@
                             ? formatDuration(story.timeOnFrontPage)
                             : "N/A",
                         description: "Total time tracked",
-                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <polyline points="12 6 12 12 16 14"></polyline>
-                              </svg>`,
+                        i: 3,
                     },
                     {
                         label: "Comments",
                         value: story.comments || "N/A",
                         description: "Discussion count",
-                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--hn-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                              </svg>`,
+                        i: 4,
                     },
                 ];
 
                 let html = "";
                 metrics.forEach((metric) => {
                     html += `
-                        <div class="performance-metric">
-                            ${metric.icon}
+                        <div class="performance-metric" style="--i: ${metric.i}">
                             <div class="metric-label">${metric.label}</div>
                             <div class="metric-value">${metric.value}</div>
                             <div class="metric-description">${metric.description}</div>
@@ -718,8 +900,6 @@
 
                 container.innerHTML = html;
             }
-
-            // Comment link function removed as we now show comments in metrics
 
             function loadStoryGraph(storyId) {
                 const noGraph = document.getElementById("no-graph");
@@ -734,10 +914,11 @@
 
                 // Create snapshot-specific cache key
                 const snapshotKey = `snapshots_${storyId}`;
-                
+
                 // Add If-None-Match header if we have an ETag for this story's snapshots
                 if (snapshotEtagCache[snapshotKey]) {
-                    options.headers["If-None-Match"] = snapshotEtagCache[snapshotKey];
+                    options.headers["If-None-Match"] =
+                        snapshotEtagCache[snapshotKey];
                 }
 
                 fetch(`/api/story/${storyId}/snapshots`, options)
@@ -751,14 +932,17 @@
 
                         if (!response.ok) {
                             // Handle 304 Not Modified - use cached data
-                            if (response.status === 304 && snapshotDataCache[snapshotKey]) {
+                            if (
+                                response.status === 304 &&
+                                snapshotDataCache[snapshotKey]
+                            ) {
                                 console.log(
                                     `Story ${storyId} snapshots not modified, using cached data`,
                                 );
                                 // Use the cached data for this story ID
-                                        if (snapshotDataCache[snapshotKey]) {
-                                            return snapshotDataCache[snapshotKey];
-                                        }
+                                if (snapshotDataCache[snapshotKey]) {
+                                    return snapshotDataCache[snapshotKey];
+                                }
                                 // If we don't have cached data, re-fetch
                                 throw new Error(
                                     "Cache miss on 304, re-fetching",
