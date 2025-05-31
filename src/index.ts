@@ -90,6 +90,13 @@ await Promise.all([setupPromise, cacheWarmingPromise]).catch((err) => {
   Sentry.captureException(err);
 });
 
+async function serveFile(filePath: string): Promise<Response> {
+  const file = Bun.file(filePath);
+  return new Response(await file.bytes(), {
+    headers: { "Content-Type": file.type },
+  });
+}
+
 const server = Bun.serve({
   port: process.env.PORT || 3000,
   reusePort: true,
@@ -97,6 +104,20 @@ const server = Bun.serve({
   routes: {
     "/": root,
     "/item": item,
+    // Static files
+    "/public/favicon.ico": await serveFile("./public/favicon.ico"),
+    "/public/favicon-96x96.png": await serveFile("./public/favicon-96x96.png"),
+    "/public/apple-touch-icon.png": await serveFile(
+      "./public/apple-touch-icon.png",
+    ),
+    "/public/site.webmanifest": await serveFile("./public/site.webmanifest"),
+    "/public/web-app-manifest-192x192.png": await serveFile(
+      "./public/web-app-manifest-192x192.png",
+    ),
+    "/public/web-app-manifest-512x512.png": await serveFile(
+      "./public/web-app-manifest-512x512.png",
+    ),
+    "/public/og.png": await serveFile("./public/og.png"),
     // Apply CORS to all API routes
     "/api/story/:id": handleCORS(async (req) => {
       try {
