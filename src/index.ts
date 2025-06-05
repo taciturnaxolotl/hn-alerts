@@ -321,6 +321,75 @@ const server = Bun.serve({
       ),
     ),
 
+    "/api/stats/header": handleCORS(
+      createCachedEndpoint(
+        "stats_header",
+        async () => {
+          // Get total stories count
+          const storiesCountResult = await db
+            .select({ count: count() })
+            .from(stories);
+          const totalStories = Number(storiesCountResult[0]?.count || 0);
+
+          // Calculate time threshold for last 5 days
+          const fiveDaysAgo = Math.floor(Date.now() / 1000) - 5 * 24 * 60 * 60;
+
+          // Get top points in last 5 days
+          const topPointsStory = await db.query.stories.findFirst({
+            columns: {
+              score: true,
+              peakScore: true,
+            },
+            where: (stories, { gt }) => gt(stories.firstSeenAt, fiveDaysAgo),
+            orderBy: (stories, { desc }) => [desc(stories.peakScore)],
+          });
+
+          // Calculate average time on front page for recent stories
+          const recentCompletedStories = await db.query.stories.findMany({
+            columns: {
+              enteredLeaderboardAt: true,
+              firstSeenAt: true,
+              isOnLeaderboard: true,
+            },
+            where: (stories, { and, gt, eq }) =>
+              and(
+                gt(stories.firstSeenAt, fiveDaysAgo),
+                eq(stories.isOnLeaderboard, false),
+                stories.enteredLeaderboardAt,
+              ),
+          });
+
+          // Calculate average time on front page
+          let totalTimeOnFrontPage = 0;
+          let storiesWithFrontPageTime = 0;
+
+          for (const story of recentCompletedStories) {
+            if (story.enteredLeaderboardAt) {
+              const timeOnFrontPage =
+                story.firstSeenAt - story.enteredLeaderboardAt;
+              if (timeOnFrontPage > 0) {
+                totalTimeOnFrontPage += timeOnFrontPage;
+                storiesWithFrontPageTime++;
+              }
+            }
+          }
+
+          const avgTimeOnFrontPage =
+            storiesWithFrontPageTime > 0
+              ? Math.round(totalTimeOnFrontPage / storiesWithFrontPageTime / 60) // Convert to minutes
+              : 0;
+
+          return {
+            totalStories: totalStories,
+            topPoints: topPointsStory?.peakScore || 0,
+            avgTimeOnFrontPageMinutes: avgTimeOnFrontPage,
+            timestamp: Math.floor(Date.now() / 1000),
+          };
+        },
+        1800,
+      ),
+    ),
+
     "/api/stats/verified-users": handleCORS(
       createCachedEndpoint(
         "verified_users_stats",

@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const mostActiveTimeEl = document.getElementById("most-active-time");
   const avgFrontpageTimeEl = document.getElementById("avg-frontpage-time");
   let totalStoriesCount = 0; // Track total stories count
+  let headerStatsLoaded = false; // Track if header stats have been loaded
 
   // Initialize stats
   updatePerformanceMetrics([]);
@@ -221,6 +222,52 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .catch((error) => {
         console.error("Error fetching verified user stats:", error);
+      });
+      
+    // Fetch header stats for performance metrics
+    const statsHeaderOptions = {
+      headers: {},
+    };
+    
+    // Add If-None-Match header if we have an ETag
+    if (etagCache.statsHeader) {
+      statsHeaderOptions.headers["If-None-Match"] = etagCache.statsHeader;
+    }
+    
+    // Add Accept-Encoding header if browser supports it
+    if ('Accept-Encoding' in navigator) {
+      statsHeaderOptions.headers["Accept-Encoding"] = "gzip, deflate, br";
+    }
+    
+    fetch("/api/stats/header", statsHeaderOptions)
+      .then((response) => {
+        // Store the new ETag if available
+        const etag = response.headers.get("ETag");
+        if (etag) {
+          etagCache.statsHeader = etag;
+          persistCaches();
+        }
+        
+        // If 304 Not Modified, use cached data
+        if (response.status === 304) {
+          console.log("Stats header not modified, using cached data");
+          return Promise.resolve(responseCache.statsHeader); // Use cached data
+        }
+        
+        return response.json();
+      })
+      .then((data) => {
+        if (data) {
+          // Store in cache for future 304 responses
+          responseCache.statsHeader = data;
+          persistCaches();
+          
+          // Update UI with the stats header data
+          updateHeaderStats(data);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching stats header:", error);
       });
 
     // Fetch stories
@@ -818,28 +865,52 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Live counter function to update time-based elements
-  // Update top row stats based on verified user data
-  function updateTopStats(data) {
-    // Update performance metrics if they exist
+  // Update header stats based on API data
+  function updateHeaderStats(data) {
+    // Update the stats from the header API endpoint
+    const currentFrontpageCountEl = document.getElementById("current-frontpage-count");
     const topTenCountEl = document.getElementById("top-ten-count");
+    const avgFrontpageTimeEl = document.getElementById("avg-frontpage-time");
     const mostActiveTimeEl = document.getElementById("most-active-time");
-
+    
+    if (currentFrontpageCountEl) {
+      currentFrontpageCountEl.textContent = data.totalStories || "0";
+    }
+    
     if (topTenCountEl) {
-      topTenCountEl.textContent = data.frontPageCount || "0";
+      topTenCountEl.textContent = data.topPoints || "0";
     }
-    if (mostActiveTimeEl) {
-      mostActiveTimeEl.textContent = data.avgPeakPoints || "0";
+    
+    if (avgFrontpageTimeEl && data.avgTimeOnFrontPageMinutes) {
+      const minutes = data.avgTimeOnFrontPageMinutes;
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      avgFrontpageTimeEl.textContent = `${hours}:${remainingMinutes.toString().padStart(2, '0')}`;
     }
+    
+    // Mark stats as loaded
+    headerStatsLoaded = true;
+  }
 
+  function updateTopStats(data) {
+    // This function is now primarily used for verified user data updates
+    // Main stats are updated directly from the /api/stats/header endpoint
+    
     // Update verified user analytics metrics if they exist
     const verifiedUserCountEl = document.getElementById("verified-user-count");
     const verifiedAvgPointsEl = document.getElementById("verified-avg-points");
+    const mostActiveTimeEl = document.getElementById("most-active-time");
 
     if (verifiedUserCountEl) {
       verifiedUserCountEl.textContent = data.totalCount || "0";
     }
     if (verifiedAvgPointsEl) {
       verifiedAvgPointsEl.textContent = data.avgPeakPoints || "0";
+    }
+    
+    // Update the most active time element if it exists
+    if (mostActiveTimeEl && !mostActiveTimeEl.textContent.trim() && !headerStatsLoaded) {
+      mostActiveTimeEl.textContent = data.avgPeakPoints || "0";
     }
   }
 
@@ -887,8 +958,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      // Update average duration in performance metrics if we have the displayed stories
-      if (document.getElementById("avg-frontpage-time")) {
+      // Only update if we don't have data from the API
+      if (document.getElementById("avg-frontpage-time") && !headerStatsLoaded) {
         let totalMs = 0;
         let storiesWithDuration = 0;
 
