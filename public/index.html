@@ -201,7 +201,7 @@
                 );
             }
 
-            .story-item h3 {
+            .story-item h2 {
                 margin-top: 0;
                 margin-bottom: 0.6rem;
                 font-size: 1.2rem;
@@ -424,12 +424,8 @@
             }
 
             .refresh-button {
-                background: linear-gradient(
-                    135deg,
-                    var(--hn-orange),
-                    var(--hn-orange-hover)
-                );
-                color: white;
+                background: #fa6800;
+                color: #000000;
                 border: none;
                 padding: 0.6rem 1.2rem;
                 border-radius: 8px;
@@ -642,9 +638,15 @@
             .metric-label {
                 font-size: 1.1rem;
                 font-weight: 600;
-                color: #3b82f6;
+                color: #014f9d;
                 margin-bottom: 0.8rem;
                 letter-spacing: 0.03em;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                .metric-label {
+                    color: #bbdefb !important;
+                }
             }
 
             .metric-value {
@@ -784,7 +786,7 @@
                     font-size: 0.8rem;
                 }
 
-                .story-item h3 {
+                .story-item h2 {
                     font-size: 1rem;
                 }
 
@@ -819,7 +821,7 @@
                     font-size: 0.9rem;
                 }
 
-                .story-item h3 {
+                .story-item h2 {
                     font-size: 1.1rem;
                 }
 
@@ -915,7 +917,11 @@
             </div>
 
             <div class="graph-container" id="graph-container">
-                <div class="graph-header" id="graph-header" style="display: none;">
+                <div
+                    class="graph-header"
+                    id="graph-header"
+                    style="display: none"
+                >
                     <h3 id="graph-title"></h3>
                     <div class="graph-meta" id="graph-meta"></div>
                 </div>

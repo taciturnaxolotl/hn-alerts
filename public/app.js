@@ -100,23 +100,29 @@ document.addEventListener("DOMContentLoaded", () => {
   let showVerifiedOnly = false; // Default to showing all stories
 
   // Cache for ETags and data to support conditional requests with sessionStorage persistence
-  const etagCache = JSON.parse(sessionStorage.getItem('etagCache') || JSON.stringify({
-    stories: null,
-    totalStories: null,
-    verifiedUsers: null,
-  }));
+  const etagCache = JSON.parse(
+    sessionStorage.getItem("etagCache") ||
+      JSON.stringify({
+        stories: null,
+        totalStories: null,
+        verifiedUsers: null,
+      }),
+  );
 
   // Cache for actual response data
-  const responseCache = JSON.parse(sessionStorage.getItem('responseCache') || JSON.stringify({
-    stories: null,
-    totalStories: null,
-    verifiedUsers: null,
-  }));
+  const responseCache = JSON.parse(
+    sessionStorage.getItem("responseCache") ||
+      JSON.stringify({
+        stories: null,
+        totalStories: null,
+        verifiedUsers: null,
+      }),
+  );
 
   // Helper function to persist cache state
   function persistCaches() {
-    sessionStorage.setItem('etagCache', JSON.stringify(etagCache));
-    sessionStorage.setItem('responseCache', JSON.stringify(responseCache));
+    sessionStorage.setItem("etagCache", JSON.stringify(etagCache));
+    sessionStorage.setItem("responseCache", JSON.stringify(responseCache));
   }
 
   // Fetch stories data
@@ -189,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Add Accept-Encoding header if browser supports it
-    if ('Accept-Encoding' in navigator) {
+    if ("Accept-Encoding" in navigator) {
       verifiedUsersOptions.headers["Accept-Encoding"] = "gzip, deflate, br";
     }
 
@@ -223,22 +229,22 @@ document.addEventListener("DOMContentLoaded", () => {
       .catch((error) => {
         console.error("Error fetching verified user stats:", error);
       });
-      
+
     // Fetch header stats for performance metrics
     const statsHeaderOptions = {
       headers: {},
     };
-    
+
     // Add If-None-Match header if we have an ETag
     if (etagCache.statsHeader) {
       statsHeaderOptions.headers["If-None-Match"] = etagCache.statsHeader;
     }
-    
+
     // Add Accept-Encoding header if browser supports it
-    if ('Accept-Encoding' in navigator) {
+    if ("Accept-Encoding" in navigator) {
       statsHeaderOptions.headers["Accept-Encoding"] = "gzip, deflate, br";
     }
-    
+
     fetch("/api/stats/header", statsHeaderOptions)
       .then((response) => {
         // Store the new ETag if available
@@ -247,13 +253,13 @@ document.addEventListener("DOMContentLoaded", () => {
           etagCache.statsHeader = etag;
           persistCaches();
         }
-        
+
         // If 304 Not Modified, use cached data
         if (response.status === 304) {
           console.log("Stats header not modified, using cached data");
           return Promise.resolve(responseCache.statsHeader); // Use cached data
         }
-        
+
         return response.json();
       })
       .then((data) => {
@@ -261,7 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
           // Store in cache for future 304 responses
           responseCache.statsHeader = data;
           persistCaches();
-          
+
           // Update UI with the stats header data
           updateHeaderStats(data);
         }
@@ -281,7 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Add Accept-Encoding header if browser supports it
-    if ('Accept-Encoding' in navigator) {
+    if ("Accept-Encoding" in navigator) {
       storiesOptions.headers["Accept-Encoding"] = "gzip, deflate, br";
     }
 
@@ -413,7 +419,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Add verified badge if story is from a monitored user
       html += `
         <div class="story-item${isCurrentTop ? " top-story" : ""}${isCurrentRankOne ? " top-ranked" : ""}${isBestRankOne && !isCurrentRankOne ? " previously-top-ranked" : ""}" data-id="${story.id}" data-url="${story.url}" data-timestamp="${timestampMs}">
-            <h3>${story.title}</h3>
+            <h2>${story.title}</h2>
             ${rankDisplay}
             <div class="story-meta">
                 <span>Points: ${story.points}</span>
@@ -474,10 +480,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const graphContainer = document.getElementById("graph-container");
         if (graphContainer) {
           setTimeout(() => {
-            graphContainer.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center',
-              inline: 'nearest'
+            graphContainer.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+              inline: "nearest",
             });
           }, 100);
         }
@@ -497,9 +503,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const graphHeader = document.getElementById("graph-header");
     const graphTitle = document.getElementById("graph-title");
     const graphMeta = document.getElementById("graph-meta");
-    
+
     // Find the story details for the header
-    const story = allStories.find(s => s.id.toString() === storyId);
+    const story = allStories.find((s) => s.id.toString() === storyId);
     if (story) {
       graphTitle.textContent = story.title;
       graphMeta.innerHTML = `
@@ -640,31 +646,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // If less than 24 hours ago, show time only
                 if (diffHours < 24) {
-                  return date.toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: false 
+                  return date.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
                   });
                 }
                 // If less than 7 days ago, show day and time
-                else if (diffDays < 7) {
-                  return date.toLocaleDateString([], { 
-                    weekday: 'short', 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: false 
+                if (diffDays < 7) {
+                  return date.toLocaleDateString([], {
+                    weekday: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
                   });
                 }
                 // Otherwise show date and time
-                else {
-                  return date.toLocaleDateString([], { 
-                    month: 'short', 
-                    day: 'numeric',
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: false 
-                  });
-                }
+                return date.toLocaleDateString([], {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                });
               },
             },
           },
@@ -692,19 +696,19 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         interaction: {
           intersect: false,
-          mode: 'index',
+          mode: "index",
         },
         plugins: {
           tooltip: {
-            backgroundColor: 'rgba(255, 255, 255, 0.98)',
-            titleColor: '#1a1a1a',
-            bodyColor: '#333',
-            borderColor: 'rgba(255, 102, 0, 0.3)',
+            backgroundColor: "rgba(255, 255, 255, 0.98)",
+            titleColor: "#1a1a1a",
+            bodyColor: "#333",
+            borderColor: "rgba(255, 102, 0, 0.3)",
             borderWidth: 2,
             cornerRadius: 12,
             displayColors: true,
             padding: 12,
-            titleAlign: 'center',
+            titleAlign: "center",
             titleFont: {
               size: 14,
               weight: 600,
@@ -713,7 +717,7 @@ document.addEventListener("DOMContentLoaded", () => {
               size: 13,
               weight: 500,
             },
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)",
             caretPadding: 10,
             callbacks: {
               title: (context) =>
@@ -721,7 +725,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           },
           legend: {
-            position: 'top',
+            position: "top",
             labels: {
               usePointStyle: true,
               boxWidth: 10,
@@ -735,48 +739,51 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onHover: (event, elements) => {
           if (!event.native) return;
-          
+
           const canvas = chart.canvas;
           const rect = canvas.getBoundingClientRect();
           const x = event.native.clientX - rect.left;
           const y = event.native.clientY - rect.top;
-          
+
           // Clear previous crosshair lines
-          chart.update('none');
-          
+          chart.update("none");
+
           // Draw crosshair lines
           const ctx = chart.ctx;
           const chartArea = chart.chartArea;
-          
-          if (x >= chartArea.left && x <= chartArea.right && 
-              y >= chartArea.top && y <= chartArea.bottom) {
-            
+
+          if (
+            x >= chartArea.left &&
+            x <= chartArea.right &&
+            y >= chartArea.top &&
+            y <= chartArea.bottom
+          ) {
             ctx.save();
-            ctx.strokeStyle = 'rgba(153, 153, 153, 0.8)';
+            ctx.strokeStyle = "rgba(153, 153, 153, 0.8)";
             ctx.lineWidth = 1;
             ctx.setLineDash([3, 3]);
-            
+
             // Vertical line
             ctx.beginPath();
             ctx.moveTo(x, chartArea.top);
             ctx.lineTo(x, chartArea.bottom);
             ctx.stroke();
-            
+
             // Horizontal line
             ctx.beginPath();
             ctx.moveTo(chartArea.left, y);
             ctx.lineTo(chartArea.right, y);
             ctx.stroke();
-            
+
             ctx.restore();
           }
         },
       },
     });
-    
+
     // Add mouse leave event listener to clean up crosshair
-    chart.canvas.addEventListener('mouseleave', () => {
-      chart.update('none');
+    chart.canvas.addEventListener("mouseleave", () => {
+      chart.update("none");
     });
   }
 
@@ -953,42 +960,50 @@ document.addEventListener("DOMContentLoaded", () => {
       transform: translateY(-2px);
     }
     .duration-short {
-      background-color: rgba(76, 175, 80, 0.3);
-      color: #2E7D32; /* Higher contrast green for new stories (<3h) */
-      box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
+      background: linear-gradient(135deg, #A5D6A7 0%, #C8E6C9 100%);
+      color: #1B5E20;
+      border: 2px solid #4CAF50;
+      box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
     }
     .duration-normal {
-      background-color: rgba(3, 169, 244, 0.3);
-      color: #0277BD; /* Higher contrast blue for normal-age stories (3-12h) */
-      box-shadow: 0 2px 6px rgba(3, 169, 244, 0.2);
+      background: linear-gradient(135deg, #90CAF9 0%, #BBDEFB 100%);
+      color: #0D47A1;
+      border: 2px solid #2196F3;
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
     }
     .duration-medium {
-      background-color: rgba(255, 152, 0, 0.3);
-      color: #E65100; /* Higher contrast orange for medium-age stories (12-24h) */
-      box-shadow: 0 2px 6px rgba(255, 152, 0, 0.2);
+      background: linear-gradient(135deg, #FFCC80 0%, #FFE0B2 100%);
+      color: #E65100;
+      border: 2px solid #FF9800;
+      box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
     }
     .duration-long {
-      background-color: rgba(156, 39, 176, 0.3);
-      color: #6A1B99; /* Higher contrast purple for long-lasting stories (24h+) */
-      box-shadow: 0 2px 6px rgba(156, 39, 176, 0.2);
+      background: linear-gradient(135deg, #CE93D8 0%, #E1BEE7 100%);
+      color: #4A148C;
+      border: 2px solid #9C27B0;
+      box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3);
     }
 
     @media (prefers-color-scheme: dark) {
       .duration-short {
-        background-color: rgba(76, 175, 80, 0.4);
-        color: #66BB6A;
+        background: linear-gradient(135deg, #2E7D32 0%, #388E3C 100%);
+        color: #E8F5E8;
+        border: 2px solid #66BB6A;
       }
       .duration-normal {
-        background-color: rgba(3, 169, 244, 0.4);
-        color: #42A5F5;
+        background: linear-gradient(135deg, #1976D2 0%, #1E88E5 100%);
+        color: #E3F2FD;
+        border: 2px solid #42A5F5;
       }
       .duration-medium {
-        background-color: rgba(255, 152, 0, 0.4);
-        color: #FFAB40;
+        background: linear-gradient(135deg, #F57C00 0%, #FB8C00 100%);
+        color: #FFF3E0;
+        border: 2px solid #FFAB40;
       }
       .duration-long {
-        background-color: rgba(156, 39, 176, 0.4);
-        color: #AB47BC;
+        background: linear-gradient(135deg, #7B1FA2 0%, #8E24AA 100%);
+        color: #F3E5F5;
+        border: 2px solid #AB47BC;
       }
     }
 
@@ -999,14 +1014,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* Profile link styles */
     .profile-link {
-      color: var(--hn-orange);
+      color: #9E3110;
       text-decoration: none;
       font-weight: 600;
       transition: color 0.2s ease;
     }
     .profile-link:hover {
-      color: var(--hn-orange-hover);
+      color: #BF360C;
       text-decoration: underline;
+    }
+
+    /* External and item link styles */
+    .external-link, .item-link {
+      color: #1565C0;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+    .external-link:hover, .item-link:hover {
+      color: #0D47A1;
+      text-decoration: underline;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .profile-link {
+        color: #FFAB91;
+      }
+      .profile-link:hover {
+        color: #FFCCBC;
+      }
+
+      .external-link, .item-link {
+        color: #90CAF9;
+      }
+      .external-link:hover, .item-link:hover {
+        color: #BBDEFB;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -1045,26 +1088,28 @@ document.addEventListener("DOMContentLoaded", () => {
   // Update header stats based on API data
   function updateHeaderStats(data) {
     // Update the stats from the header API endpoint
-    const currentFrontpageCountEl = document.getElementById("current-frontpage-count");
+    const currentFrontpageCountEl = document.getElementById(
+      "current-frontpage-count",
+    );
     const topTenCountEl = document.getElementById("top-ten-count");
     const avgFrontpageTimeEl = document.getElementById("avg-frontpage-time");
     const mostActiveTimeEl = document.getElementById("most-active-time");
-    
+
     if (currentFrontpageCountEl) {
       currentFrontpageCountEl.textContent = data.totalStories || "0";
     }
-    
+
     if (topTenCountEl) {
       topTenCountEl.textContent = data.topPoints || "0";
     }
-    
+
     if (avgFrontpageTimeEl && data.avgTimeOnFrontPageMinutes) {
       const minutes = data.avgTimeOnFrontPageMinutes;
       const hours = Math.floor(minutes / 60);
       const remainingMinutes = minutes % 60;
-      avgFrontpageTimeEl.textContent = `${hours}:${remainingMinutes.toString().padStart(2, '0')}`;
+      avgFrontpageTimeEl.textContent = `${hours}:${remainingMinutes.toString().padStart(2, "0")}`;
     }
-    
+
     // Mark stats as loaded
     headerStatsLoaded = true;
   }
@@ -1072,7 +1117,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateTopStats(data) {
     // This function is now primarily used for verified user data updates
     // Main stats are updated directly from the /api/stats/header endpoint
-    
+
     // Update verified user analytics metrics if they exist
     const verifiedUserCountEl = document.getElementById("verified-user-count");
     const verifiedAvgPointsEl = document.getElementById("verified-avg-points");
@@ -1084,9 +1129,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (verifiedAvgPointsEl) {
       verifiedAvgPointsEl.textContent = data.avgPeakPoints || "0";
     }
-    
+
     // Update the most active time element if it exists
-    if (mostActiveTimeEl && !mostActiveTimeEl.textContent.trim() && !headerStatsLoaded) {
+    if (
+      mostActiveTimeEl &&
+      !mostActiveTimeEl.textContent.trim() &&
+      !headerStatsLoaded
+    ) {
       mostActiveTimeEl.textContent = data.avgPeakPoints || "0";
     }
   }

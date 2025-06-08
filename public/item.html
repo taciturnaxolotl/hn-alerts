@@ -181,7 +181,7 @@
                 box-shadow: 0 6px 15px rgba(255, 102, 0, 0.15);
             }
 
-            .story-item h3 {
+            .story-item h2 {
                 margin-top: 0;
                 margin-bottom: 0.8rem;
                 font-size: 1.3rem;
@@ -190,14 +190,14 @@
                 max-width: 95%;
             }
 
-            .story-item h3 a {
+            .story-item h2 a {
                 color: var(--hn-orange);
                 text-decoration: none;
                 transition: all 0.3s ease;
                 position: relative;
             }
 
-            .story-item h3 a:hover {
+            .story-item h2 a:hover {
                 text-decoration: underline;
                 text-shadow: 0 2px 4px rgba(255, 102, 0, 0.3);
                 filter: drop-shadow(0 0 8px rgba(255, 102, 0, 0.6));
@@ -407,9 +407,15 @@
             .metric-label {
                 font-size: 1.1rem;
                 font-weight: 600;
-                color: #3b82f6;
+                color: #014f9d;
                 margin-bottom: 0.8rem;
                 letter-spacing: 0.03em;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                .metric-label {
+                    color: #bbdefb !important;
+                }
             }
 
             .metric-value {
@@ -420,18 +426,6 @@
                 -webkit-background-clip: text;
                 background-clip: text;
                 color: transparent;
-                animation: numberCountUp 1.5s ease-out forwards;
-            }
-
-            @keyframes numberCountUp {
-                from {
-                    opacity: 0;
-                    transform: scale(0.8);
-                }
-                to {
-                    opacity: 1;
-                    transform: scale(1);
-                }
             }
 
             .metric-description {
@@ -618,7 +612,7 @@
                     font-size: 0.8rem;
                 }
 
-                .story-item h3 {
+                .story-item h2 {
                     font-size: 1rem;
                 }
 
@@ -649,7 +643,7 @@
                     font-size: 0.9rem;
                 }
 
-                .story-item h3 {
+                .story-item h2 {
                     font-size: 1.1rem;
                 }
 
@@ -850,11 +844,11 @@
                     : "";
 
                 const html = `
-                    <h3>
+                    <h2>
                         <a href="${story.url || `https://news.ycombinator.com/item?id=${story.id}`}" target="_blank" rel="noopener">
                             ${escapeHTML(story.title)}
                         </a>
-                    </h3>
+                    </h2>
 
                     <div class="meta-bar">
                         <div class="meta-item">
@@ -1113,17 +1107,21 @@
                                 },
                                 ticks: {
                                     maxTicksLimit: 6,
-                                    callback: function(value, index) {
-                                        const timestamps = this.chart.data.labels;
+                                    callback: function (value, index) {
+                                        const timestamps =
+                                            this.chart.data.labels;
                                         const timeLabel = timestamps[index];
-                                        
+
                                         // Parse the time string (HH:MM format)
-                                        if (timeLabel && timeLabel.includes(':')) {
+                                        if (
+                                            timeLabel &&
+                                            timeLabel.includes(":")
+                                        ) {
                                             return timeLabel;
                                         }
-                                        
+
                                         // Fallback to showing every other label
-                                        return index % 2 === 0 ? timeLabel : '';
+                                        return index % 2 === 0 ? timeLabel : "";
                                     },
                                 },
                             },
@@ -1164,15 +1162,15 @@
                         },
                         plugins: {
                             tooltip: {
-                                backgroundColor: 'rgba(255, 255, 255, 0.98)',
-                                titleColor: '#1a1a1a',
-                                bodyColor: '#333',
-                                borderColor: 'rgba(255, 102, 0, 0.3)',
+                                backgroundColor: "rgba(255, 255, 255, 0.98)",
+                                titleColor: "#1a1a1a",
+                                bodyColor: "#333",
+                                borderColor: "rgba(255, 102, 0, 0.3)",
                                 borderWidth: 2,
                                 cornerRadius: 12,
                                 displayColors: true,
                                 padding: 12,
-                                titleAlign: 'center',
+                                titleAlign: "center",
                                 titleFont: {
                                     size: 14,
                                     weight: 600,
@@ -1181,7 +1179,7 @@
                                     size: 13,
                                     weight: 500,
                                 },
-                                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+                                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)",
                                 caretPadding: 10,
                                 callbacks: {
                                     title: function (tooltipItems) {
