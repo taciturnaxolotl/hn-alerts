@@ -153,6 +153,7 @@ const server = Bun.serve({
               descendants: true,
               by: true,
               enteredLeaderboardAt: true,
+              exitedLeaderboardAt: true,
               firstSeenAt: true,
               isOnLeaderboard: true,
               isFromMonitoredUser: true,
@@ -164,14 +165,15 @@ const server = Bun.serve({
             return null;
           }
 
-          // Calculate time on front page if available
           let timeOnFrontPage = null;
+
           if (story.enteredLeaderboardAt) {
-            // Use current time as end time if the story is still on the leaderboard
-            const endTime = story.isOnLeaderboard
-              ? Math.floor(Date.now() / 1000)
-              : story.enteredLeaderboardAt + 3600;
-            timeOnFrontPage = endTime - story.enteredLeaderboardAt;
+            if (story.exitedLeaderboardAt)
+              timeOnFrontPage =
+                story.exitedLeaderboardAt - story.enteredLeaderboardAt;
+            else
+              timeOnFrontPage =
+                (Date.now() - story.enteredLeaderboardAt * 1000) / 1000;
           }
 
           // Format the response
