@@ -84,10 +84,10 @@
                 --bg-color: #ffffff;
                 --bg-secondary: #f5f5f5;
                 --text-color: #212121;
-                --text-secondary: #555;
-                --hn-orange: #ff6600;
-                --hn-orange-hover: #e05d00;
-                --border-color: #ddd;
+                --text-secondary: #333;
+                --hn-orange: #e05d00;
+                --hn-orange-hover: #cc5500;
+                --border-color: #ccc;
             }
 
             @media (prefers-color-scheme: dark) {
@@ -95,8 +95,8 @@
                     --bg-color: #1a1a1a;
                     --bg-secondary: #2a2a2a;
                     --text-color: #f0f0f0;
-                    --text-secondary: #aaa;
-                    --border-color: #444;
+                    --text-secondary: #cccccc;
+                    --border-color: #555;
                 }
             }
 
@@ -112,6 +112,26 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+
+            .header-text {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                flex-wrap: wrap;
+            }
+
+            .header h1 {
+                margin: 0;
+                margin-right: 1rem;
+            }
+
+            .header p {
+                margin: 0;
+                color: var(--text-secondary);
+                font-style: italic;
             }
 
             .header img {
@@ -136,7 +156,7 @@
                 background-color: var(--bg-secondary);
                 border-radius: 16px;
                 padding: 1.5rem;
-                height: 500px;
+                height: 580px;
                 top: 1rem;
                 box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
                 border: 1px solid rgba(59, 130, 246, 0.1);
@@ -144,6 +164,8 @@
                 max-width: 600px;
                 position: sticky;
                 top: 0.5rem;
+                display: flex;
+                flex-direction: column;
             }
 
             .graph-container:hover {
@@ -154,8 +176,8 @@
             .story-item {
                 background-color: var(--bg-secondary);
                 border-radius: 12px;
-                padding: 1.2rem;
-                margin-bottom: 1.2rem;
+                padding: 1rem;
+                margin-bottom: 1rem;
                 border-left: 4px solid var(--hn-orange);
                 cursor: pointer;
                 transition: all 0.3s ease;
@@ -181,20 +203,20 @@
 
             .story-item h3 {
                 margin-top: 0;
-                margin-bottom: 0.8rem;
-                font-size: 1.3rem;
+                margin-bottom: 0.6rem;
+                font-size: 1.2rem;
                 line-height: 1.3;
                 color: var(--text-color);
                 max-width: 95%;
             }
 
             .story-meta {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
                 color: var(--text-secondary);
                 display: flex;
                 justify-content: space-between;
-                margin-top: 0.8rem;
-                padding-top: 0.8rem;
+                margin-top: 0.6rem;
+                padding-top: 0.6rem;
                 border-top: 1px solid rgba(255, 102, 0, 0.1);
                 max-width: 27rem;
             }
@@ -476,6 +498,33 @@
 
             .toggle-label {
                 font-size: 0.9rem;
+            }
+
+            .graph-header {
+                margin-bottom: 1rem;
+                padding-bottom: 0.75rem;
+                border-bottom: 2px solid rgba(255, 102, 0, 0.1);
+            }
+
+            .graph-header h3 {
+                margin: 0 0 0.5rem 0;
+                font-size: 1.1rem;
+                line-height: 1.3;
+                color: var(--text-color);
+                max-width: 100%;
+            }
+
+            .graph-meta {
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+
+            #rank-chart {
+                flex: 1;
+                min-height: 0;
             }
 
             .no-graph {
@@ -802,7 +851,7 @@
     </head>
     <body>
         <div class="header">
-            <div>
+            <div class="header-text">
                 <h1>Hacker News Alerts Dashboard</h1>
                 <p>Monitor your HN front page appearances</p>
             </div>
@@ -866,6 +915,10 @@
             </div>
 
             <div class="graph-container" id="graph-container">
+                <div class="graph-header" id="graph-header" style="display: none;">
+                    <h3 id="graph-title"></h3>
+                    <div class="graph-meta" id="graph-meta"></div>
+                </div>
                 <div class="no-graph" id="no-graph">
                     <p>
                         <span class="section-icon">📈</span><br />

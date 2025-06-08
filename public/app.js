@@ -419,7 +419,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span>Points: ${story.points}</span>
                 <span>Peak Points: ${story.peakPoints || story.points}</span>
                 <span>Comments: ${story.comments}</span>
-                <span>By: ${story.by}${story.isFromMonitoredUser ? " 💖" : ""}</span>
+                <span>By: <a href="https://news.ycombinator.com/user?id=${story.by}" target="_blank" class="profile-link">${story.by}</a>${story.isFromMonitoredUser ? " 💖" : ""}</span>
             </div>
             <div class="story-meta">
                 <span>Detected: ${date}</span>
@@ -453,7 +453,9 @@ document.addEventListener("DOMContentLoaded", () => {
           e.target.classList.contains("external-link") ||
           e.target.closest(".external-link") ||
           e.target.classList.contains("item-link") ||
-          e.target.closest(".item-link")
+          e.target.closest(".item-link") ||
+          e.target.classList.contains("profile-link") ||
+          e.target.closest(".profile-link")
         ) {
           return;
         }
@@ -467,6 +469,18 @@ document.addEventListener("DOMContentLoaded", () => {
           i.classList.remove("active");
         }
         item.classList.add("active");
+
+        // Scroll graph into view with smooth animation
+        const graphContainer = document.getElementById("graph-container");
+        if (graphContainer) {
+          setTimeout(() => {
+            graphContainer.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'nearest'
+            });
+          }, 100);
+        }
       });
     }
   }
@@ -479,6 +493,23 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadStoryGraph(storyId) {
     if (activeStoryId === storyId) return;
     activeStoryId = storyId;
+
+    const graphHeader = document.getElementById("graph-header");
+    const graphTitle = document.getElementById("graph-title");
+    const graphMeta = document.getElementById("graph-meta");
+    
+    // Find the story details for the header
+    const story = allStories.find(s => s.id.toString() === storyId);
+    if (story) {
+      graphTitle.textContent = story.title;
+      graphMeta.innerHTML = `
+        <span>By: <a href="https://news.ycombinator.com/user?id=${story.by}" target="_blank" class="profile-link">${story.by}</a></span>
+        <span>Current Rank: #${story.rank}</span>
+        <span>Points: ${story.points}</span>
+        <span>Comments: ${story.comments}</span>
+      `;
+      graphHeader.style.display = "block";
+    }
 
     noGraph.style.display = "flex";
     rankChart.style.display = "none";
@@ -570,18 +601,20 @@ document.addEventListener("DOMContentLoaded", () => {
           {
             label: "Rank (Position)",
             data: positionDataPoints,
-            borderColor: "#ff6600",
-            backgroundColor: "rgba(255, 102, 0, 0.1)",
+            borderColor: "#e05d00",
+            backgroundColor: "rgba(224, 93, 0, 0.1)",
             tension: 0.1,
             yAxisID: "y",
+            borderWidth: 3,
           },
           {
             label: "Score (Points)",
             data: scoreDataPoints,
-            borderColor: "#3b82f6",
-            backgroundColor: "rgba(59, 130, 246, 0.1)",
+            borderColor: "#0277BD",
+            backgroundColor: "rgba(2, 119, 189, 0.1)",
             tension: 0.1,
             yAxisID: "y1",
+            borderWidth: 3,
           },
         ],
       },
@@ -597,7 +630,42 @@ document.addEventListener("DOMContentLoaded", () => {
               text: "Time",
             },
             ticks: {
-              callback: (value) => new Date(value).toLocaleString(),
+              maxTicksLimit: 6,
+              callback: (value) => {
+                const date = new Date(value);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffHours = diffMs / (1000 * 60 * 60);
+                const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+                // If less than 24 hours ago, show time only
+                if (diffHours < 24) {
+                  return date.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                  });
+                }
+                // If less than 7 days ago, show day and time
+                else if (diffDays < 7) {
+                  return date.toLocaleDateString([], { 
+                    weekday: 'short', 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                  });
+                }
+                // Otherwise show date and time
+                else {
+                  return date.toLocaleDateString([], { 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                  });
+                }
+              },
             },
           },
           y: {
@@ -622,15 +690,93 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           },
         },
+        interaction: {
+          intersect: false,
+          mode: 'index',
+        },
         plugins: {
           tooltip: {
+            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+            titleColor: '#1a1a1a',
+            bodyColor: '#333',
+            borderColor: 'rgba(255, 102, 0, 0.3)',
+            borderWidth: 2,
+            cornerRadius: 12,
+            displayColors: true,
+            padding: 12,
+            titleAlign: 'center',
+            titleFont: {
+              size: 14,
+              weight: 600,
+            },
+            bodyFont: {
+              size: 13,
+              weight: 500,
+            },
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+            caretPadding: 10,
             callbacks: {
               title: (context) =>
                 new Date(context[0].parsed.x).toLocaleString(),
             },
           },
+          legend: {
+            position: 'top',
+            labels: {
+              usePointStyle: true,
+              boxWidth: 10,
+              padding: 20,
+              font: {
+                size: 13,
+                weight: 500,
+              },
+            },
+          },
+        },
+        onHover: (event, elements) => {
+          if (!event.native) return;
+          
+          const canvas = chart.canvas;
+          const rect = canvas.getBoundingClientRect();
+          const x = event.native.clientX - rect.left;
+          const y = event.native.clientY - rect.top;
+          
+          // Clear previous crosshair lines
+          chart.update('none');
+          
+          // Draw crosshair lines
+          const ctx = chart.ctx;
+          const chartArea = chart.chartArea;
+          
+          if (x >= chartArea.left && x <= chartArea.right && 
+              y >= chartArea.top && y <= chartArea.bottom) {
+            
+            ctx.save();
+            ctx.strokeStyle = 'rgba(153, 153, 153, 0.8)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            
+            // Vertical line
+            ctx.beginPath();
+            ctx.moveTo(x, chartArea.top);
+            ctx.lineTo(x, chartArea.bottom);
+            ctx.stroke();
+            
+            // Horizontal line
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, y);
+            ctx.lineTo(chartArea.right, y);
+            ctx.stroke();
+            
+            ctx.restore();
+          }
         },
       },
+    });
+    
+    // Add mouse leave event listener to clean up crosshair
+    chart.canvas.addEventListener('mouseleave', () => {
+      chart.update('none');
     });
   }
 
@@ -807,29 +953,60 @@ document.addEventListener("DOMContentLoaded", () => {
       transform: translateY(-2px);
     }
     .duration-short {
-      background-color: rgba(76, 175, 80, 0.2);
-      color: #4CAF50; /* Green for new stories (<3h) */
+      background-color: rgba(76, 175, 80, 0.3);
+      color: #2E7D32; /* Higher contrast green for new stories (<3h) */
       box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
     }
     .duration-normal {
-      background-color: rgba(3, 169, 244, 0.2);
-      color: #03A9F4; /* Blue for normal-age stories (3-12h) */
+      background-color: rgba(3, 169, 244, 0.3);
+      color: #0277BD; /* Higher contrast blue for normal-age stories (3-12h) */
       box-shadow: 0 2px 6px rgba(3, 169, 244, 0.2);
     }
     .duration-medium {
-      background-color: rgba(255, 152, 0, 0.2);
-      color: #FF9800; /* Orange for medium-age stories (12-24h) */
+      background-color: rgba(255, 152, 0, 0.3);
+      color: #E65100; /* Higher contrast orange for medium-age stories (12-24h) */
       box-shadow: 0 2px 6px rgba(255, 152, 0, 0.2);
     }
     .duration-long {
-      background-color: rgba(156, 39, 176, 0.2);
-      color: #9C27B0; /* Purple for long-lasting stories (24h+) */
+      background-color: rgba(156, 39, 176, 0.3);
+      color: #6A1B99; /* Higher contrast purple for long-lasting stories (24h+) */
       box-shadow: 0 2px 6px rgba(156, 39, 176, 0.2);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .duration-short {
+        background-color: rgba(76, 175, 80, 0.4);
+        color: #66BB6A;
+      }
+      .duration-normal {
+        background-color: rgba(3, 169, 244, 0.4);
+        color: #42A5F5;
+      }
+      .duration-medium {
+        background-color: rgba(255, 152, 0, 0.4);
+        color: #FFAB40;
+      }
+      .duration-long {
+        background-color: rgba(156, 39, 176, 0.4);
+        color: #AB47BC;
+      }
     }
 
     /* Tooltip styles for duration */
     .story-meta .duration {
       cursor: help;
+    }
+
+    /* Profile link styles */
+    .profile-link {
+      color: var(--hn-orange);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+    .profile-link:hover {
+      color: var(--hn-orange-hover);
+      text-decoration: underline;
     }
   `;
   document.head.appendChild(style);
