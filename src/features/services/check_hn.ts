@@ -11,21 +11,16 @@ import {
   and,
   isNull,
   lt,
-  gte,
   notInArray,
   not,
   count,
   inArray,
 } from "drizzle-orm";
-import {
-  getNewStories,
-  getItems,
-  type Story,
-  getTopStories,
-} from "../../libs/hackernews";
+import { getItems, type Story, getTopStories } from "../../libs/hackernews";
 import { addDays } from "../../libs/time";
 import type { AnyMessageBlock } from "slack-edge";
 import { sqlite } from "../../libs/db";
+import { htmlToSlackMarkdown } from "../../libs/slackmd";
 
 // Constants
 const TOP_STORIES_LIMIT = 30; // Front page is considered the top 30 stories
@@ -756,7 +751,7 @@ async function sendNotification(
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*<${story.url || `https://news.ycombinator.com/item?id=${story.id}`}|${story.title}>*\n${story.text || ""}`,
+          text: `*<${story.url || `https://news.ycombinator.com/item?id=${story.id}`}|${story.title}>*\n${htmlToSlackMarkdown(story.text || "")}`,
         },
       },
       {
