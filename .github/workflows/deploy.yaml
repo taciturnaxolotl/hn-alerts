@@ -1,18 +1,70 @@
+name: Deploy HN Alerts
+
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: file commands
-        uses: appleboy/ssh-action@v1
+      
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v3
         with:
-          host: hackclub.app
-          username: kierank
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          script_path: update.sh
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          use-cache: "true"
+      
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "StrictHostKeyChecking no" >> ~/.ssh/config
+      
+      - name: Deploy to server
+        run: |
+          ssh hn-alerts@terebithia << 'EOF'
+            cd /var/lib/hn-alerts/app
+            git fetch --all
+            git reset --hard origin/main
+            bun install
+            sudo /run/current-system/sw/bin/systemctl restart hn-alerts.service
+          EOF
+      
+      - name: Wait for service to start
+        run: sleep 10
+      
+      - name: Health check
+        run: |
+          HEALTH_URL="https://hn.dunkirk.sh/health"
+          MAX_RETRIES=6
+          RETRY_DELAY=5
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Health check attempt $i/$MAX_RETRIES..."
+            
+            RESPONSE=$(curl -s -w "\n%{http_code}" "$HEALTH_URL" || echo "000")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Service is healthy"
+              echo "$BODY"
+              exit 0
+            fi
+            
+            echo "❌ Health check failed with HTTP $HTTP_CODE"
+            echo "$BODY"
+            
+            if [ $i -lt $MAX_RETRIES ]; then
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+            fi
+          done
+          
+          echo "❌ Health check failed after $MAX_RETRIES attempts"
+          exit 1
