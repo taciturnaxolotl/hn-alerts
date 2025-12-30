@@ -2,8 +2,8 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import { Database } from "bun:sqlite";
 import * as schema from "./schema";
 
-// Use environment variable for the database path in production
-const dbPath = process.env.DATABASE_PATH || "./local.db";
+// Use environment variable for the database URL
+const dbPath = process.env.DATABASE_URL || "./local.db";
 
 // Create a SQLite database instance using Bun's built-in driver with improved concurrency settings
 const sqlite = new Database(dbPath, {
